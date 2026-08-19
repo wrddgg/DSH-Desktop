@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'none'" />
+    <title>DSH Desktop</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="launch-shell">
+      <section class="launch-card" aria-labelledby="product-title">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64" role="img">
+            <path d="M12 14h40a4 4 0 0 1 4 4v27a4 4 0 0 1-4 4H30l-12 9v-9h-6a4 4 0 0 1-4-4V18a4 4 0 0 1 4-4Z" fill="currentColor" />
+            <path d="M18 26h28M18 36h18" fill="none" stroke="#4176E6" stroke-width="4" stroke-linecap="round" />
+          </svg>
+        </div>
+        <p class="eyebrow">DEEPSEEK HARNESS · WINDOWS</p>
+        <h1 id="product-title">DSH Desktop</h1>
+        <p id="status-message" class="status-message" role="status">正在准备 Desktop 配置…</p>
+
+        <div class="version-rail" aria-label="启动阶段">
+          <div class="rail-item active" data-stage="desktop">
+            <span class="rail-dot"></span>
+            <span>Desktop</span>
+          </div>
+          <span class="rail-line"></span>
+          <div class="rail-item" data-stage="harness">
+            <span class="rail-dot"></span>
+            <span>DSH rc.7</span>
+          </div>
+          <span class="rail-line"></span>
+          <div class="rail-item" data-stage="plugins">
+            <span class="rail-dot"></span>
+            <span>插件配置</span>
+          </div>
+        </div>
+
+        <div class="progress-track" aria-hidden="true"><span id="progress-bar"></span></div>
+
+        <div id="failure-actions" class="failure-actions" hidden>
+          <button id="retry-button" class="primary-button" type="button">重新启动</button>
+          <button id="logs-button" class="secondary-button" type="button">打开日志</button>
+        </div>
+        <details id="log-details" hidden>
+          <summary>启动详情</summary>
+          <pre id="log-tail"></pre>
+        </details>
+      </section>
+      <p class="footnote">官方 DSH 运行在本机回环地址，窗口不会向外部页面暴露系统权限。</p>
+    </main>
+    <script src="./renderer.js"></script>
+  </body>
+</html>

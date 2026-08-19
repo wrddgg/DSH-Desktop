@@ -1,0 +1,8 @@
+node_modules/
+runtime-resources/
+dist/
+release/
+.npm-cache/
+build/icon.png
+*.log
+.DS_Store

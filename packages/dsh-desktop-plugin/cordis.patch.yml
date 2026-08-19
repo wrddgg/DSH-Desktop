@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-desktop
+      name: '@wrddgg/dsh-desktop-plugin'
