@@ -2,6 +2,10 @@ import { app } from 'electron'
 import { join } from 'node:path'
 import type { RuntimeState, UpdateState } from '../shared/contracts.js'
 import { AppUpdater } from './app-updater.js'
+import { DialogBridge } from './bridge-dialog.js'
+import { FsBridge } from './bridge-fs.js'
+import { GitBridge } from './bridge-git.js'
+import { SecretStore } from './bridge-secret.js'
 import { HarnessSupervisor } from './harness-supervisor.js'
 import { registerIpc } from './ipc.js'
 import { AppLogger } from './logger.js'
@@ -27,9 +31,12 @@ if (!hasLock) {
     supervisor = new HarnessSupervisor({
       dshHome: join(app.getPath('userData'), 'harness'),
       workspace: app.getPath('documents'),
-      pluginSource: app.isPackaged
-        ? join(process.resourcesPath, 'dsh-desktop-plugin')
-        : undefined,
+      pluginSources: app.isPackaged
+        ? {
+            desktopPlugin: join(process.resourcesPath, 'dsh-desktop-plugin'),
+            fileRefPlugin: join(process.resourcesPath, 'dsh-desktop-file-ref'),
+          }
+        : {},
       dshBin: app.isPackaged
         ? join(
             process.resourcesPath,
@@ -46,7 +53,15 @@ if (!hasLock) {
     updater = new AppUpdater(logger)
     desktopWindow = new DesktopWindow(supervisor)
 
-    registerIpc({ updater, supervisor, logger })
+    const fsBridge = new FsBridge({
+      fallbackRoot: app.getPath('documents'),
+      log: (scope, message) => void logger.write(scope, message),
+    })
+    const dialogBridge = new DialogBridge(() => desktopWindow?.browserWindow)
+    const secretStore = new SecretStore((scope, message) => void logger.write(scope, message))
+    const gitBridge = new GitBridge()
+
+    registerIpc({ updater, supervisor, logger, fsBridge, dialogBridge, secretStore, gitBridge })
     supervisor.on('state', (state: RuntimeState) => {
       desktopWindow?.sendRuntimeState(state)
       if (state.status === 'ready' && state.url !== undefined) {

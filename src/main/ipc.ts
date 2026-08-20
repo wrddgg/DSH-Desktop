@@ -7,6 +7,10 @@ import {
   type DesktopInfo,
 } from '../shared/contracts.js'
 import { AppUpdater } from './app-updater.js'
+import { DialogBridge } from './bridge-dialog.js'
+import { FsBridge } from './bridge-fs.js'
+import { GitBridge } from './bridge-git.js'
+import { SecretStore } from './bridge-secret.js'
 import { HarnessSupervisor } from './harness-supervisor.js'
 import { AppLogger } from './logger.js'
 import { isAllowedHarnessUrl } from './readiness.js'
@@ -33,13 +37,23 @@ export function registerIpc(options: {
   updater: AppUpdater
   supervisor: HarnessSupervisor
   logger: AppLogger
+  fsBridge: FsBridge
+  dialogBridge: DialogBridge
+  secretStore: SecretStore
+  gitBridge: GitBridge
 }): void {
-  const { updater, supervisor, logger } = options
-  const handle = <T>(channel: string, action: () => T | Promise<T>): void => {
-    ipcMain.handle(channel, async (event) => {
+  const { updater, supervisor, logger, fsBridge, dialogBridge, secretStore, gitBridge } = options
+  const handle = <T>(channel: string, action: (...args: unknown[]) => T | Promise<T>): void => {
+    ipcMain.handle(channel, async (event, ...args) => {
       if (!trustedSender(event, supervisor)) throw new Error('Blocked untrusted Desktop IPC sender')
-      return action()
+      return action(...args)
     })
+  }
+  const stringArg = (value: unknown, field = 'path'): string => {
+    if (typeof value !== 'string' || value.length === 0 || value.length > 32_768) {
+      throw new Error(`Invalid ${field} argument`)
+    }
+    return value
   }
 
   handle('desktop:get-info', (): DesktopInfo => ({
@@ -72,4 +86,67 @@ export function registerIpc(options: {
     await logger.write('desktop', 'Opening log folder')
     shell.showItemInFolder(logger.file)
   })
+
+  // ---- Workbench bridges -------------------------------------------------
+
+  handle('desktop:fs:stat', (path: unknown) => fsBridge.statPath(stringArg(path)))
+  handle('desktop:fs:list', (directory: unknown) => fsBridge.list(stringArg(directory, 'directory')))
+  handle('desktop:fs:read', (path: unknown, options: unknown) => {
+    const raw = options !== null && typeof options === 'object' ? options as { maxBytes?: unknown } : {}
+    const maxBytes = raw.maxBytes !== undefined ? Number(raw.maxBytes) : undefined
+    const readOptions: { maxBytes?: number } | undefined = typeof maxBytes === 'number' && Number.isFinite(maxBytes)
+      ? { maxBytes }
+      : undefined
+    return fsBridge.read(stringArg(path), readOptions)
+  })
+  handle('desktop:fs:write', (path: unknown, content: unknown) => {
+    if (typeof content !== 'string' || content.length > 64 * 1024 * 1024) throw new Error('Invalid content argument')
+    return fsBridge.write(stringArg(path), content)
+  })
+  handle('desktop:fs:search', (query: unknown, options: unknown) => {
+    const raw = options !== null && typeof options === 'object' ? options as { root?: unknown; limit?: unknown } : {}
+    const searchOptions: { root?: string; limit?: number } = {}
+    if (typeof raw.root === 'string' && raw.root.length > 0) searchOptions.root = raw.root
+    if (typeof raw.limit === 'number' && Number.isFinite(raw.limit)) searchOptions.limit = raw.limit
+    return fsBridge.search(stringArg(query, 'query'), searchOptions)
+  })
+
+  handle('desktop:dialog:pick-files', () => dialogBridge.pickFiles())
+  handle('desktop:dialog:pick-directory', (options: unknown) => {
+    const defaultPath = options !== null && typeof options === 'object' && 'defaultPath' in options
+      ? (options as { defaultPath?: unknown }).defaultPath
+      : undefined
+    return dialogBridge.pickDirectory(typeof defaultPath === 'string' && defaultPath.length > 0 ? { defaultPath } : undefined)
+  })
+
+  handle('desktop:secret:get', (key: unknown) => secretStore.get(stringArg(key, 'key')))
+  handle('desktop:secret:set', (key: unknown, value: unknown) => {
+    if (typeof value !== 'string' || value.length > 16_384) throw new Error('Invalid secret value')
+    return secretStore.set(stringArg(key, 'key'), value)
+  })
+  handle('desktop:secret:delete', (key: unknown) => secretStore.delete(stringArg(key, 'key')))
+
+  handle('desktop:git:is-repo', (cwd: unknown) => gitBridge.isRepo(stringArg(cwd, 'cwd')))
+  handle('desktop:git:status', (cwd: unknown) => gitBridge.status(stringArg(cwd, 'cwd')))
+  handle('desktop:git:diff', (cwd: unknown, options: unknown) => {
+    const path = options !== null && typeof options === 'object' && 'path' in options
+      ? (options as { path?: unknown }).path
+      : undefined
+    const staged = options !== null && typeof options === 'object' && 'staged' in options
+      ? (options as { staged?: unknown }).staged
+      : undefined
+    return gitBridge.diff(stringArg(cwd, 'cwd'), {
+      ...(typeof path === 'string' && path.length > 0 ? { path } : {}),
+      ...(staged === true ? { staged: true } : {}),
+    })
+  })
+  handle('desktop:git:stage', (cwd: unknown, paths: unknown) => {
+    if (!Array.isArray(paths) || paths.some(entry => typeof entry !== 'string')) throw new Error('Invalid paths argument')
+    return gitBridge.stage(stringArg(cwd, 'cwd'), paths as string[])
+  })
+  handle('desktop:git:unstage', (cwd: unknown, paths: unknown) => {
+    if (!Array.isArray(paths) || paths.some(entry => typeof entry !== 'string')) throw new Error('Invalid paths argument')
+    return gitBridge.unstage(stringArg(cwd, 'cwd'), paths as string[])
+  })
+  handle('desktop:git:commit', (cwd: unknown, message: unknown) => gitBridge.commit(stringArg(cwd, 'cwd'), stringArg(message, 'message')))
 }

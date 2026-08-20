@@ -57,4 +57,118 @@ export interface DshDesktopApi {
   getRuntimeState(): Promise<RuntimeState>
   onUpdateState(listener: (state: UpdateState) => void): () => void
   onRuntimeState(listener: (state: RuntimeState) => void): () => void
+  /** Resolve the absolute filesystem path behind a dropped browser File. */
+  getPathForFile(file: File): string
+  fs: DshDesktopFsApi
+  dialog: DshDesktopDialogApi
+  secret: DshDesktopSecretApi
+  git: DshDesktopGitApi
+}
+
+export interface FsEntry {
+  name: string
+  path: string
+  isDirectory: boolean
+  size: number
+}
+
+export interface FsStatResult {
+  ok: boolean
+  exists?: boolean
+  isDirectory?: boolean
+  size?: number
+  message?: string
+}
+
+export interface FsListResult {
+  ok: boolean
+  entries?: FsEntry[]
+  message?: string
+}
+
+export interface FsReadResult {
+  ok: boolean
+  content?: string
+  binary?: boolean
+  truncated?: boolean
+  message?: string
+}
+
+export interface FsSearchEntry {
+  path: string
+  isDirectory: boolean
+  size: number
+}
+
+export interface FsSearchResult {
+  ok: boolean
+  entries?: FsSearchEntry[]
+  message?: string
+}
+
+export interface DshDesktopFsApi {
+  stat(path: string): Promise<FsStatResult>
+  list(directory: string): Promise<FsListResult>
+  read(path: string, options?: { maxBytes?: number }): Promise<FsReadResult>
+  write(path: string, content: string): Promise<{ ok: boolean; message?: string }>
+  search(query: string, options?: { root?: string; limit?: number }): Promise<FsSearchResult>
+}
+
+export interface DialogPickFilesResult {
+  ok: boolean
+  paths?: string[]
+  canceled?: boolean
+}
+
+export interface DialogPickDirectoryResult {
+  ok: boolean
+  path?: string
+  canceled?: boolean
+}
+
+export interface DshDesktopDialogApi {
+  pickFiles(): Promise<DialogPickFilesResult>
+  pickDirectory(options?: { defaultPath?: string }): Promise<DialogPickDirectoryResult>
+}
+
+export interface SecretResult {
+  ok: boolean
+  value?: string
+  message?: string
+}
+
+export interface DshDesktopSecretApi {
+  get(key: string): Promise<SecretResult>
+  set(key: string, value: string): Promise<SecretResult>
+  delete(key: string): Promise<SecretResult>
+}
+
+export interface GitRunResult {
+  ok: boolean
+  stdout?: string
+  stderr?: string
+  code?: number
+  message?: string
+}
+
+export interface GitStatusEntry {
+  path: string
+  status: string
+  staged: boolean
+}
+
+export interface GitStatusResult {
+  ok: boolean
+  branch?: string
+  entries?: GitStatusEntry[]
+  message?: string
+}
+
+export interface DshDesktopGitApi {
+  isRepo(cwd: string): Promise<{ ok: boolean; isRepo?: boolean; message?: string }>
+  status(cwd: string): Promise<GitStatusResult>
+  diff(cwd: string, options?: { path?: string; staged?: boolean }): Promise<{ ok: boolean; text?: string; message?: string }>
+  stage(cwd: string, paths: string[]): Promise<GitRunResult>
+  unstage(cwd: string, paths: string[]): Promise<GitRunResult>
+  commit(cwd: string, message: string): Promise<GitRunResult>
 }

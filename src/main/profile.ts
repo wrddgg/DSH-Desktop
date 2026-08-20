@@ -21,9 +21,10 @@ interface ManagedProfileManifest {
 const manifest: ManagedProfileManifest = {
   name: '@dsh/profile-desktop-app',
   private: true,
-  version: '1.0.0',
+  version: '1.1.0',
   dependencies: {
     '@wrddgg/dsh-desktop-plugin': '1.0.0',
+    '@wrddgg/dsh-desktop-file-ref': '0.1.0',
   },
   dsh: {
     profile: {
@@ -31,6 +32,7 @@ const manifest: ManagedProfileManifest = {
         '@deepseek-ai/dsh-base',
         '@deepseek-ai/dsh-web-app',
         '@wrddgg/dsh-desktop-plugin',
+        '@wrddgg/dsh-desktop-file-ref',
       ],
     },
   },
@@ -40,19 +42,34 @@ const manifest: ManagedProfileManifest = {
   },
 }
 
+const BUNDLED_PLUGINS = [
+  { name: '@wrddgg/dsh-desktop-plugin', version: '1.0.0' },
+  { name: '@wrddgg/dsh-desktop-file-ref', version: '0.1.0' },
+] as const
+
+export interface PluginSources {
+  desktopPlugin?: string
+  fileRefPlugin?: string
+}
+
 export interface ProfileResult {
   profileDir: string
   created: boolean
 }
 
+function resolvePluginSource(name: string, override: string | undefined): string {
+  if (override !== undefined) return override
+  const require = createRequire(__filename)
+  return dirname(require.resolve(`${name}/package.json`))
+}
+
 export async function ensureDesktopProfile(
   dshHome: string,
-  pluginSourceOverride?: string,
+  pluginSources?: PluginSources,
 ): Promise<ProfileResult> {
   const profileDir = join(dshHome, 'profiles', 'dsh-desktop-app')
   const manifestPath = join(profileDir, 'package.json')
   const patchPath = join(profileDir, 'cordis.patch.yml')
-  const pluginTarget = join(profileDir, 'node_modules', '@wrddgg', 'dsh-desktop-plugin')
 
   await mkdir(profileDir, { recursive: true })
 
@@ -84,11 +101,18 @@ export async function ensureDesktopProfile(
     await writeFile(patchPath, '[]\n', 'utf8')
   }
 
-  const require = createRequire(__filename)
-  const pluginSource = pluginSourceOverride
-    ?? dirname(require.resolve('@wrddgg/dsh-desktop-plugin/package.json'))
-  await mkdir(pluginTarget, { recursive: true })
-  await cp(pluginSource, pluginTarget, { recursive: true, force: true })
+  const sources: PluginSources = pluginSources ?? {}
+  const overrides: Record<string, string | undefined> = {
+    '@wrddgg/dsh-desktop-plugin': sources.desktopPlugin,
+    '@wrddgg/dsh-desktop-file-ref': sources.fileRefPlugin,
+  }
+
+  for (const plugin of BUNDLED_PLUGINS) {
+    const pluginSource = resolvePluginSource(plugin.name, overrides[plugin.name])
+    const pluginTarget = join(profileDir, 'node_modules', ...plugin.name.split('/'))
+    await mkdir(pluginTarget, { recursive: true })
+    await cp(pluginSource, pluginTarget, { recursive: true, force: true })
+  }
 
   return { profileDir, created }
 }

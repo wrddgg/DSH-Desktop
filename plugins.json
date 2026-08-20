@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "@wrddgg/dsh-desktop-plugin",
+      "packageDir": "packages/dsh-desktop-plugin",
+      "clientEntry": null,
+      "clientBundle": "lib/client.js",
+      "description": "Update UI + read-only diff overlay (hand-written client bundle)"
+    },
+    {
+      "id": "@wrddgg/dsh-desktop-file-ref",
+      "packageDir": "packages/dsh-desktop-file-ref",
+      "clientEntry": "src/client.tsx",
+      "clientBundle": "lib/client.js",
+      "description": "Codex-style drag & drop file references and @file search",
+      "bridge": ["fs", "dialog"]
+    }
+  ]
+}

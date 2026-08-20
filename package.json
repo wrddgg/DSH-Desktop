@@ -11,7 +11,7 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "build": "node scripts/build.mjs",
+    "build": "node scripts/build.mjs && node scripts/build-plugins.mjs",
     "dev": "npm run build && electron .",
     "start": "electron .",
     "test": "vitest run",
@@ -40,6 +40,7 @@
     "@types/node": "24.10.1",
     "@koromix/koffi-win32-x64": "3.1.5",
     "@wrddgg/dsh-desktop-plugin": "file:packages/dsh-desktop-plugin",
+    "@wrddgg/dsh-desktop-file-ref": "file:packages/dsh-desktop-file-ref",
     "electron": "43.4.0",
     "electron-builder": "26.15.3",
     "esbuild": "0.28.2",
@@ -67,6 +68,15 @@
         "to": "dsh-desktop-plugin",
         "filter": [
           "**/*"
+        ]
+      },
+      {
+        "from": "packages/dsh-desktop-file-ref",
+        "to": "dsh-desktop-file-ref",
+        "filter": [
+          "package.json",
+          "cordis.patch.yml",
+          "lib/**/*.js"
         ]
       },
       {

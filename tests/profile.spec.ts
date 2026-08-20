@@ -23,6 +23,7 @@ describe('ensureDesktopProfile', () => {
       '@deepseek-ai/dsh-base',
       '@deepseek-ai/dsh-web-app',
       '@wrddgg/dsh-desktop-plugin',
+      '@wrddgg/dsh-desktop-file-ref',
     ])
     expect(await readFile(join(result.profileDir, 'cordis.patch.yml'), 'utf8')).toBe('[]\n')
     const plugin = JSON.parse(await readFile(
@@ -30,6 +31,19 @@ describe('ensureDesktopProfile', () => {
       'utf8',
     ))
     expect(plugin.name).toBe('@wrddgg/dsh-desktop-plugin')
+  })
+
+  it('copies the file-reference plugin into the managed profile', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'dsh-desktop-profile-'))
+    temporary.push(home)
+
+    const result = await ensureDesktopProfile(home)
+    const fileRef = JSON.parse(await readFile(
+      join(result.profileDir, 'node_modules', '@wrddgg', 'dsh-desktop-file-ref', 'package.json'),
+      'utf8',
+    ))
+    expect(fileRef.name).toBe('@wrddgg/dsh-desktop-file-ref')
+    expect(fileRef.dsh.client.platform).toBe('web')
   })
 
   it('refuses to overwrite an unmanaged Desktop app profile', async () => {

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type {
   DesktopInfo,
   DshDesktopApi,
@@ -26,6 +26,37 @@ const api: DshDesktopApi = {
     const handler = (_event: Electron.IpcRendererEvent, state: RuntimeState): void => listener(state)
     ipcRenderer.on('desktop:runtime-state', handler)
     return () => ipcRenderer.removeListener('desktop:runtime-state', handler)
+  },
+  getPathForFile: (file: File): string => {
+    try {
+      return webUtils.getPathForFile(file)
+    } catch {
+      return ''
+    }
+  },
+  fs: {
+    stat: (path) => ipcRenderer.invoke('desktop:fs:stat', path),
+    list: (directory) => ipcRenderer.invoke('desktop:fs:list', directory),
+    read: (path, options) => ipcRenderer.invoke('desktop:fs:read', path, options ?? {}),
+    write: (path, content) => ipcRenderer.invoke('desktop:fs:write', path, content),
+    search: (query, options) => ipcRenderer.invoke('desktop:fs:search', query, options ?? {}),
+  },
+  dialog: {
+    pickFiles: () => ipcRenderer.invoke('desktop:dialog:pick-files'),
+    pickDirectory: (options) => ipcRenderer.invoke('desktop:dialog:pick-directory', options ?? {}),
+  },
+  secret: {
+    get: (key) => ipcRenderer.invoke('desktop:secret:get', key),
+    set: (key, value) => ipcRenderer.invoke('desktop:secret:set', key, value),
+    delete: (key) => ipcRenderer.invoke('desktop:secret:delete', key),
+  },
+  git: {
+    isRepo: (cwd) => ipcRenderer.invoke('desktop:git:is-repo', cwd),
+    status: (cwd) => ipcRenderer.invoke('desktop:git:status', cwd),
+    diff: (cwd, options) => ipcRenderer.invoke('desktop:git:diff', cwd, options ?? {}),
+    stage: (cwd, paths) => ipcRenderer.invoke('desktop:git:stage', cwd, paths),
+    unstage: (cwd, paths) => ipcRenderer.invoke('desktop:git:unstage', cwd, paths),
+    commit: (cwd, message) => ipcRenderer.invoke('desktop:git:commit', cwd, message),
   },
 }
 

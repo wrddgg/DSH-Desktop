@@ -5,7 +5,7 @@ import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { DESKTOP_VERSION, type RuntimeState } from '../shared/contracts.js'
 import { AppLogger } from './logger.js'
-import { ensureDesktopProfile } from './profile.js'
+import { ensureDesktopProfile, type PluginSources } from './profile.js'
 import { parseHarnessUrl } from './readiness.js'
 
 const START_TIMEOUT_MS = 90_000
@@ -44,7 +44,7 @@ function cleanEnvironment(overrides: Record<string, string>): NodeJS.ProcessEnv 
 export class HarnessSupervisor extends EventEmitter {
   readonly #dshHome: string
   readonly #workspace: string
-  readonly #pluginSource: string | undefined
+  readonly #pluginSources: PluginSources
   readonly #dshBin: string | undefined
   readonly #logger: AppLogger
   #child: ChildProcess | undefined
@@ -61,14 +61,14 @@ export class HarnessSupervisor extends EventEmitter {
   public constructor(options: {
     dshHome: string
     workspace: string
-    pluginSource: string | undefined
+    pluginSources: PluginSources
     dshBin: string | undefined
     logger: AppLogger
   }) {
     super()
     this.#dshHome = options.dshHome
     this.#workspace = options.workspace
-    this.#pluginSource = options.pluginSource
+    this.#pluginSources = options.pluginSources
     this.#dshBin = options.dshBin
     this.#logger = options.logger
   }
@@ -86,7 +86,7 @@ export class HarnessSupervisor extends EventEmitter {
 
     this.#setState({ status: 'starting', message: '正在准备 Desktop 配置…' })
     try {
-      await ensureDesktopProfile(this.#dshHome, this.#pluginSource)
+      await ensureDesktopProfile(this.#dshHome, this.#pluginSources)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       await this.#logger.write('desktop:error', message)
@@ -109,6 +109,11 @@ export class HarnessSupervisor extends EventEmitter {
           DSH_HOME: this.#dshHome,
           DSH_DESKTOP: '1',
           DSH_DESKTOP_VERSION: DESKTOP_VERSION,
+          // The Windows ACL sandbox runner crashes PowerShell child processes
+          // (0xC0000142) when DSH itself runs under Electron. The desktop
+          // therefore runs the harness unconfined at the file-effect level;
+          // safety comes from the product permission modes and approvals.
+          DSH_PERMISSION_MODE: 'danger-full-access',
         }),
         windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe'],
