@@ -38,6 +38,7 @@ try {
     desktopPlugin: join(root, 'packages', 'dsh-desktop-plugin'),
     fileRefPlugin: join(root, 'packages', 'dsh-desktop-file-ref'),
     workbenchPlugin: join(root, 'packages', 'dsh-desktop-workbench'),
+    pwshPlugin: join(root, 'packages', 'dsh-desktop-pwsh'),
   }, {
     safe,
     disabledPlugins,
@@ -52,7 +53,8 @@ try {
         ...process.env,
         ELECTRON_RUN_AS_NODE: '1',
         DSH_HOME: home,
-        DSH_PERMISSION_MODE: 'danger-full-access',
+        // Confined mode ON: the desktop pwsh executor must make this safe.
+        DSH_PERMISSION_MODE: 'workspace-write',
       },
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -94,6 +96,14 @@ try {
     await new Promise(resolveWait => setTimeout(resolveWait, 500))
   }
   if (!ready) throw new Error(`Harness never became ready at ${url}`)
+
+  // Composition guard: the pwsh plugin must load cleanly (it replaces the
+  // official pwsh-sandbox, so a failed fiber here would silently break the
+  // PowerShell tool while the web UI keeps running).
+  const failure = output.match(/[^\n]*(?:dsh-desktop-pwsh|pwsh-sandbox)[^\n]*(?:fail|error|Error)[^\n]*/g)
+  if (failure !== null && failure.length > 0) {
+    throw new Error(`Pwsh composition failure in harness output:\n${failure.slice(0, 5).join('\n')}`)
+  }
 
   const endpoint = `${url}/plugins/@wrddgg/dsh-desktop-file-ref/client.js`
   const workbenchEndpoint = `${url}/plugins/@wrddgg/dsh-desktop-workbench/client.js`

@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-desktop-pwsh
+      name: '@wrddgg/dsh-desktop-pwsh'

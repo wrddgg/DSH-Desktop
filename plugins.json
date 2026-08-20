@@ -23,6 +23,13 @@
       "clientBundle": "lib/client.js",
       "description": "Workbench panel with Files / Git / Terminal tabs",
       "bridge": ["fs", "dialog", "git", "pty"]
+    },
+    {
+      "id": "@wrddgg/dsh-desktop-pwsh",
+      "packageDir": "packages/dsh-desktop-pwsh",
+      "clientEntry": null,
+      "clientBundle": null,
+      "description": "Electron-safe PowerShell executor (host-only plugin, replaces official pwsh-sandbox)"
     }
   ]
 }

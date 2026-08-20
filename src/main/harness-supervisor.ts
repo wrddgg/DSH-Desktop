@@ -144,11 +144,11 @@ export class HarnessSupervisor extends EventEmitter {
           DSH_HOME: this.#dshHome,
           DSH_DESKTOP: '1',
           DSH_DESKTOP_VERSION: DESKTOP_VERSION,
-          // The Windows ACL sandbox runner crashes PowerShell child processes
-          // (0xC0000142) when DSH itself runs under Electron. The desktop
-          // therefore runs the harness unconfined at the file-effect level;
-          // safety comes from the product permission modes and approvals.
-          DSH_PERMISSION_MODE: 'danger-full-access',
+          // File-effect sandbox + approvals stay ON: the desktop profile
+          // replaces the official pwsh-sandbox with an Electron-safe executor
+          // (@wrddgg/dsh-desktop-pwsh), so the Windows ACL runner is never
+          // used for PowerShell inside Electron (0xC0000142).
+          DSH_PERMISSION_MODE: 'workspace-write',
         }),
         windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe'],

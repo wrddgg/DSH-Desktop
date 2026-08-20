@@ -25,8 +25,11 @@ describe('ensureDesktopProfile', () => {
       '@wrddgg/dsh-desktop-plugin',
       '@wrddgg/dsh-desktop-file-ref',
       '@wrddgg/dsh-desktop-workbench',
+      '@wrddgg/dsh-desktop-pwsh',
     ])
-    expect(await readFile(join(result.profileDir, 'cordis.patch.yml'), 'utf8')).toBe('[]\n')
+    const patch = await readFile(join(result.profileDir, 'cordis.patch.yml'), 'utf8')
+    expect(patch).toContain('pwsh-sandbox')
+    expect(patch).toContain('disabled: true')
     const plugin = JSON.parse(await readFile(
       join(result.profileDir, 'node_modules', '@wrddgg', 'dsh-desktop-plugin', 'package.json'),
       'utf8',
@@ -61,7 +64,19 @@ describe('ensureDesktopProfile', () => {
       '@wrddgg/dsh-desktop-plugin',
       '@wrddgg/dsh-desktop-file-ref',
       '@wrddgg/dsh-desktop-workbench',
+      '@wrddgg/dsh-desktop-pwsh',
     ])
+  })
+
+  it('keeps the official pwsh-sandbox when the desktop pwsh plugin is blacklisted', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'dsh-desktop-profile-'))
+    temporary.push(home)
+
+    const result = await ensureDesktopProfile(home, {}, { disabledPlugins: ['@wrddgg/dsh-desktop-pwsh'] })
+    const patch = await readFile(join(result.profileDir, 'cordis.patch.yml'), 'utf8')
+    expect(patch).toBe('[]\n')
+    const manifest = JSON.parse(await readFile(join(result.profileDir, 'package.json'), 'utf8'))
+    expect(manifest.dsh.profile.bundles).not.toContain('@wrddgg/dsh-desktop-pwsh')
   })
 
   it('drops blacklisted plugins from bundles, dependencies, and copies', async () => {

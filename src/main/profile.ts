@@ -25,24 +25,28 @@ const CORE_BUNDLES = [
   '@wrddgg/dsh-desktop-plugin',
   '@wrddgg/dsh-desktop-file-ref',
   '@wrddgg/dsh-desktop-workbench',
+  '@wrddgg/dsh-desktop-pwsh',
 ] as const
 
 const CORE_DEPENDENCIES = {
   '@wrddgg/dsh-desktop-plugin': '1.0.0',
   '@wrddgg/dsh-desktop-file-ref': '0.1.0',
   '@wrddgg/dsh-desktop-workbench': '0.1.0',
+  '@wrddgg/dsh-desktop-pwsh': '0.1.0',
 } as const
 
 const BUNDLED_PLUGINS = [
   { name: '@wrddgg/dsh-desktop-plugin', version: '1.0.0' },
   { name: '@wrddgg/dsh-desktop-file-ref', version: '0.1.0' },
   { name: '@wrddgg/dsh-desktop-workbench', version: '0.1.0' },
+  { name: '@wrddgg/dsh-desktop-pwsh', version: '0.1.0' },
 ] as const
 
 export interface PluginSources {
   desktopPlugin?: string
   fileRefPlugin?: string
   workbenchPlugin?: string
+  pwshPlugin?: string
 }
 
 export interface ProfileOptions {
@@ -59,6 +63,28 @@ export interface ProfileResult {
 
 export const NORMAL_PROFILE = 'dsh-desktop-app'
 export const SAFE_PROFILE = 'dsh-desktop-app-safe'
+
+const PWSH_PLUGIN = '@wrddgg/dsh-desktop-pwsh'
+
+/**
+ * Managed user patch layer. Disables the official ACL-restricted PowerShell
+ * executor so the Electron-safe DesktopPwshExecutor (bundled plugin) becomes
+ * the single `ctx.shell` provider; keeps the official file-effect sandbox and
+ * approval stack otherwise untouched.
+ */
+const PROFILE_PATCH_TEMPLATE = `# Managed by DSH Desktop. The official pwsh-sandbox wraps PowerShell in the
+# Windows ACL restricted-token runner, which crashes pwsh (0xC0000142) when the
+# harness runs inside Electron; @wrddgg/dsh-desktop-pwsh replaces it with an
+# Electron-safe executor. File-effect sandboxing and approvals are unaffected.
+- id: pwsh-sandbox
+  name: '@deepseek-ai/dsh-pwsh-sandbox'
+  disabled: true
+`
+
+function profilePatchContent(options: ProfileOptions | undefined): string {
+  if ((options?.disabledPlugins ?? []).includes(PWSH_PLUGIN)) return '[]\n'
+  return PROFILE_PATCH_TEMPLATE
+}
 
 function resolvePluginSource(name: string, override: string | undefined): string {
   if (override !== undefined) return override
@@ -81,7 +107,7 @@ function buildManifest(options: ProfileOptions | undefined): ManagedProfileManif
   return {
     name: `@dsh/profile-${options?.safe === true ? 'desktop-app-safe' : 'desktop-app'}`,
     private: true,
-    version: '1.3.0',
+    version: '1.4.0',
     dependencies,
     dsh: { profile: { bundles } },
     dshDesktop: { managed: true, schema: 1 },
@@ -124,19 +150,14 @@ export async function ensureDesktopProfile(
   }
 
   await writeFile(manifestPath, `${JSON.stringify(buildManifest(options), null, 2)}\n`, 'utf8')
-
-  try {
-    await readFile(patchPath, 'utf8')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    await writeFile(patchPath, '[]\n', 'utf8')
-  }
+  await writeFile(patchPath, profilePatchContent(options), 'utf8')
 
   const sources: PluginSources = pluginSources ?? {}
   const overrides: Record<string, string | undefined> = {
     '@wrddgg/dsh-desktop-plugin': sources.desktopPlugin,
     '@wrddgg/dsh-desktop-file-ref': sources.fileRefPlugin,
     '@wrddgg/dsh-desktop-workbench': sources.workbenchPlugin,
+    '@wrddgg/dsh-desktop-pwsh': sources.pwshPlugin,
   }
 
   for (const plugin of BUNDLED_PLUGINS) {
