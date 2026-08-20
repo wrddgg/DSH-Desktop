@@ -30,6 +30,27 @@
       "clientEntry": null,
       "clientBundle": null,
       "description": "Electron-safe PowerShell executor (host-only plugin, replaces official pwsh-sandbox)"
+    },
+    {
+      "id": "@wrddgg/dsh-desktop-model-cap",
+      "packageDir": "packages/dsh-desktop-model-cap",
+      "clientEntry": null,
+      "clientBundle": null,
+      "description": "User-declared model capabilities + desktop_vision bridge tool (host-only plugin)"
+    },
+    {
+      "id": "@wrddgg/dsh-desktop-vision",
+      "packageDir": "packages/dsh-desktop-vision",
+      "clientEntry": "src/client.tsx",
+      "clientBundle": "lib/client.js",
+      "description": "Vision On Demand: capability settings, vision provider setup, image-drop routing"
+    },
+    {
+      "id": "@wrddgg/dsh-desktop-message-edit",
+      "packageDir": "packages/dsh-desktop-message-edit",
+      "clientEntry": "src/client.tsx",
+      "clientBundle": "lib/client.js",
+      "description": "Double-click user message to edit and resend"
     }
   ]
 }

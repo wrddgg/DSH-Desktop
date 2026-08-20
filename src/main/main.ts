@@ -43,6 +43,9 @@ if (!hasLock) {
             fileRefPlugin: join(process.resourcesPath, 'dsh-desktop-file-ref'),
             workbenchPlugin: join(process.resourcesPath, 'dsh-desktop-workbench'),
             pwshPlugin: join(process.resourcesPath, 'dsh-desktop-pwsh'),
+            modelCapPlugin: join(process.resourcesPath, 'dsh-desktop-model-cap'),
+            visionPlugin: join(process.resourcesPath, 'dsh-desktop-vision'),
+            messageEditPlugin: join(process.resourcesPath, 'dsh-desktop-message-edit'),
           }
         : {},
       dshBin: app.isPackaged

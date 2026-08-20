@@ -26,6 +26,9 @@ describe('ensureDesktopProfile', () => {
       '@wrddgg/dsh-desktop-file-ref',
       '@wrddgg/dsh-desktop-workbench',
       '@wrddgg/dsh-desktop-pwsh',
+      '@wrddgg/dsh-desktop-model-cap',
+      '@wrddgg/dsh-desktop-vision',
+      '@wrddgg/dsh-desktop-message-edit',
     ])
     const patch = await readFile(join(result.profileDir, 'cordis.patch.yml'), 'utf8')
     expect(patch).toContain('pwsh-sandbox')
@@ -65,6 +68,9 @@ describe('ensureDesktopProfile', () => {
       '@wrddgg/dsh-desktop-file-ref',
       '@wrddgg/dsh-desktop-workbench',
       '@wrddgg/dsh-desktop-pwsh',
+      '@wrddgg/dsh-desktop-model-cap',
+      '@wrddgg/dsh-desktop-vision',
+      '@wrddgg/dsh-desktop-message-edit',
     ])
   })
 

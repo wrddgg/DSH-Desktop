@@ -57,8 +57,10 @@ export class DesktopWindow {
       if (url.startsWith('https://')) void shell.openExternal(url)
     })
 
-    session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
-      callback(false)
+    session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+      // The DSH page's copy buttons use navigator.clipboard.writeText; without
+      // this grant Electron rejects the write and copy silently fails.
+      callback(permission === 'clipboard-sanitized-write')
     })
 
     await window.loadFile(join(app.getAppPath(), 'dist', 'renderer', 'index.html'))

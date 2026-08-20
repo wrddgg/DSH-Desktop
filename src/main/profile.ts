@@ -26,6 +26,9 @@ const CORE_BUNDLES = [
   '@wrddgg/dsh-desktop-file-ref',
   '@wrddgg/dsh-desktop-workbench',
   '@wrddgg/dsh-desktop-pwsh',
+  '@wrddgg/dsh-desktop-model-cap',
+  '@wrddgg/dsh-desktop-vision',
+  '@wrddgg/dsh-desktop-message-edit',
 ] as const
 
 const CORE_DEPENDENCIES = {
@@ -33,6 +36,9 @@ const CORE_DEPENDENCIES = {
   '@wrddgg/dsh-desktop-file-ref': '0.1.0',
   '@wrddgg/dsh-desktop-workbench': '0.1.0',
   '@wrddgg/dsh-desktop-pwsh': '0.1.0',
+  '@wrddgg/dsh-desktop-model-cap': '0.1.0',
+  '@wrddgg/dsh-desktop-vision': '0.1.0',
+  '@wrddgg/dsh-desktop-message-edit': '0.1.0',
 } as const
 
 const BUNDLED_PLUGINS = [
@@ -40,6 +46,9 @@ const BUNDLED_PLUGINS = [
   { name: '@wrddgg/dsh-desktop-file-ref', version: '0.1.0' },
   { name: '@wrddgg/dsh-desktop-workbench', version: '0.1.0' },
   { name: '@wrddgg/dsh-desktop-pwsh', version: '0.1.0' },
+  { name: '@wrddgg/dsh-desktop-model-cap', version: '0.1.0' },
+  { name: '@wrddgg/dsh-desktop-vision', version: '0.1.0' },
+  { name: '@wrddgg/dsh-desktop-message-edit', version: '0.1.0' },
 ] as const
 
 export interface PluginSources {
@@ -47,6 +56,9 @@ export interface PluginSources {
   fileRefPlugin?: string
   workbenchPlugin?: string
   pwshPlugin?: string
+  modelCapPlugin?: string
+  visionPlugin?: string
+  messageEditPlugin?: string
 }
 
 export interface ProfileOptions {
@@ -107,7 +119,7 @@ function buildManifest(options: ProfileOptions | undefined): ManagedProfileManif
   return {
     name: `@dsh/profile-${options?.safe === true ? 'desktop-app-safe' : 'desktop-app'}`,
     private: true,
-    version: '1.4.0',
+    version: '1.5.0',
     dependencies,
     dsh: { profile: { bundles } },
     dshDesktop: { managed: true, schema: 1 },
@@ -158,6 +170,9 @@ export async function ensureDesktopProfile(
     '@wrddgg/dsh-desktop-file-ref': sources.fileRefPlugin,
     '@wrddgg/dsh-desktop-workbench': sources.workbenchPlugin,
     '@wrddgg/dsh-desktop-pwsh': sources.pwshPlugin,
+    '@wrddgg/dsh-desktop-model-cap': sources.modelCapPlugin,
+    '@wrddgg/dsh-desktop-vision': sources.visionPlugin,
+    '@wrddgg/dsh-desktop-message-edit': sources.messageEditPlugin,
   }
 
   for (const plugin of BUNDLED_PLUGINS) {

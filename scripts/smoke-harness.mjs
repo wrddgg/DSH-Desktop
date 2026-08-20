@@ -39,6 +39,9 @@ try {
     fileRefPlugin: join(root, 'packages', 'dsh-desktop-file-ref'),
     workbenchPlugin: join(root, 'packages', 'dsh-desktop-workbench'),
     pwshPlugin: join(root, 'packages', 'dsh-desktop-pwsh'),
+    modelCapPlugin: join(root, 'packages', 'dsh-desktop-model-cap'),
+    visionPlugin: join(root, 'packages', 'dsh-desktop-vision'),
+    messageEditPlugin: join(root, 'packages', 'dsh-desktop-message-edit'),
   }, {
     safe,
     disabledPlugins,
@@ -97,12 +100,11 @@ try {
   }
   if (!ready) throw new Error(`Harness never became ready at ${url}`)
 
-  // Composition guard: the pwsh plugin must load cleanly (it replaces the
-  // official pwsh-sandbox, so a failed fiber here would silently break the
-  // PowerShell tool while the web UI keeps running).
-  const failure = output.match(/[^\n]*(?:dsh-desktop-pwsh|pwsh-sandbox)[^\n]*(?:fail|error|Error)[^\n]*/g)
+  // Composition guard: product plugins must load cleanly (a failed fiber here
+  // would silently break the feature while the web UI keeps running).
+  const failure = output.match(/[^\n]*(?:dsh-desktop-pwsh|pwsh-sandbox|dsh-desktop-model-cap|dsh-desktop-vision|dsh-desktop-message-edit)[^\n]*(?:fail|error|Error)[^\n]*/g)
   if (failure !== null && failure.length > 0) {
-    throw new Error(`Pwsh composition failure in harness output:\n${failure.slice(0, 5).join('\n')}`)
+    throw new Error(`Plugin composition failure in harness output:\n${failure.slice(0, 5).join('\n')}`)
   }
 
   const endpoint = `${url}/plugins/@wrddgg/dsh-desktop-file-ref/client.js`
@@ -119,7 +121,17 @@ try {
     const workbenchBody = await workbenchResponse.text()
     if (!workbenchBody.includes('dshWorkbenchPanel')) throw new Error('Served bundle does not look like the workbench plugin')
 
-    console.log(`Harness smoke passed: ${url} ready, file-ref (${body.length}B) and workbench (${workbenchBody.length}B) client bundles served.`)
+    for (const [pluginId, marker] of [
+      ['@wrddgg/dsh-desktop-vision', 'dshVisionWizard'],
+      ['@wrddgg/dsh-desktop-message-edit', '双击编辑'],
+    ]) {
+      const response = await fetch(`${url}/plugins/${pluginId}/client.js`, { signal: AbortSignal.timeout(5000) })
+      if (!response.ok) throw new Error(`Bundle endpoint for ${pluginId} -> ${response.status}`)
+      const body = await response.text()
+      if (!body.includes(marker)) throw new Error(`Served bundle for ${pluginId} is missing its marker`)
+    }
+
+    console.log(`Harness smoke passed: ${url} ready, ${['file-ref', 'workbench', 'vision', 'message-edit'].join(', ')} client bundles served.`)
   } else {
     // With the plugin disabled the endpoint must NOT serve the bundle.
     if (bundleResponse.ok) throw new Error(`Disabled plugin bundle unexpectedly served at ${endpoint}`)

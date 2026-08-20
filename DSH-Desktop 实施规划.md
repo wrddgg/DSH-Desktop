@@ -466,3 +466,14 @@ V1.1 扩展：行区间（`@file:12-40`，Cursor 式）、目录树概览、`<fi
 - 发布过程中踩坑记录：PowerShell 字符串插值 `"$base?name=…"` 会把 `?` 并入变量名导致 URL 变 `=latest.yml`（curl Bad hostname），须用 `${base}?name=…`；本机到 github.com 网络持续抖动，上传/验证需多次重试。
 - 待办：向官方提交 upstream issue（`upstream-issue-pwsh-acl-electron.md` 已起草）。
 - **待办**：Change Set / Diff Review（§5.3）、Workbench 打磨（右栏停靠、xterm、CodeMirror）——下一轮。
+
+## V0.2 第六轮（本轮）✅ — 用户反馈四问题修复
+
+1. **复制按钮失效（问题 3）**：根因 = Electron 权限处理器全拒导致 `navigator.clipboard.writeText` 静默失败；`window.ts` 放行 `clipboard-sanitized-write`。
+2. **模型多模态勾选（问题 1）**：根因 = OpenAI 兼容 adapter（含 DeepSeek）对任意模型硬编码 `inputModalities: ["text"]`（`MODEL_DOES_NOT_SUPPORT_IMAGES` 拒绝链）。方案：宿主插件 `@wrddgg/dsh-desktop-model-cap`——settings 命名空间 `desktop-model-capabilities`（用户勾选表）+ 包装每个 provider adapter（`Object.create` 继承原型，仅覆盖 listModels/resolveModel，未命中完全委托）+ 设置页「模型能力」。
+3. **Vision On Demand（问题 2）**：宿主侧 `desktop_vision` 工具（读图 → 用户配置的 OpenAI 兼容视觉 API → 文本描述，配置存 `desktop-vision` 命名空间）+ 系统提示 section；客户端 `@wrddgg/dsh-desktop-vision`——拖图分流（`session.models` 取当前模型 + localStorage 能力表镜像，未声明默认按纯文本）：多模态 → 官方图片链路；纯文本且已配置视觉 → 转文件引用 chip（模型经 desktop_vision 看图）；未配置 → 弹「需要视觉能力」向导。
+4. **双击编辑重发（问题 4）**：`@wrddgg/dsh-desktop-message-edit` 替换 `conversation.chat.node` 的 user 节点（priority -1，崩溃自动 abdicate 回退官方）——双击进入编辑态，Ctrl/⌘+Enter 或按钮保存 → `inputActions.setDraft + submit` 重发。
+- 工程：profile 纳入 3 个新插件（共 9 个 bundle）；`check` 顺序修正（build 先于 test）；冒烟扩展为 4 个客户端 bundle + 全插件组合失败扫描。
+- 踩坑记录：宿主插件必须是**纯 JS**（ESM 直载，TS 注解直接语法错误）；settings 命名空间须小写连字符；Cordis 4 强制 `inject` 声明；`defineTool` 强制 `output:{schema,render}`。
+- 验证：typecheck ✓ / 65 测试全绿 / harness 冒烟三种 profile（4 bundle + 组合扫描）✓ / pwsh 冒烟 ✓。
+- 打包：`release/DSH-Desktop-Setup-1.5.0-x64.exe`（本地构建，未上传，等测试）。

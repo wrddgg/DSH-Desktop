@@ -1,6 +1,6 @@
 {
   "name": "dsh-desktop",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Windows desktop shell for the official DeepSeek Harness",
   "private": true,
   "license": "MIT",
@@ -16,7 +16,7 @@
     "start": "electron .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run test && npm run build",
+    "check": "npm run typecheck && npm run build && npm run test",
     "audit:runtime": "node scripts/audit-runtime.mjs",
     "smoke:runtime": "node scripts/smoke-runtime.mjs",
     "prepare:runtime": "node scripts/prepare-runtime.mjs",
@@ -43,6 +43,9 @@
     "@wrddgg/dsh-desktop-file-ref": "file:packages/dsh-desktop-file-ref",
     "@wrddgg/dsh-desktop-workbench": "file:packages/dsh-desktop-workbench",
     "@wrddgg/dsh-desktop-pwsh": "file:packages/dsh-desktop-pwsh",
+    "@wrddgg/dsh-desktop-model-cap": "file:packages/dsh-desktop-model-cap",
+    "@wrddgg/dsh-desktop-vision": "file:packages/dsh-desktop-vision",
+    "@wrddgg/dsh-desktop-message-edit": "file:packages/dsh-desktop-message-edit",
     "electron": "43.4.0",
     "electron-builder": "26.15.3",
     "esbuild": "0.28.2",
@@ -93,6 +96,33 @@
       {
         "from": "packages/dsh-desktop-pwsh",
         "to": "dsh-desktop-pwsh",
+        "filter": [
+          "package.json",
+          "cordis.patch.yml",
+          "lib/**/*.js"
+        ]
+      },
+      {
+        "from": "packages/dsh-desktop-model-cap",
+        "to": "dsh-desktop-model-cap",
+        "filter": [
+          "package.json",
+          "cordis.patch.yml",
+          "lib/**/*.js"
+        ]
+      },
+      {
+        "from": "packages/dsh-desktop-vision",
+        "to": "dsh-desktop-vision",
+        "filter": [
+          "package.json",
+          "cordis.patch.yml",
+          "lib/**/*.js"
+        ]
+      },
+      {
+        "from": "packages/dsh-desktop-message-edit",
+        "to": "dsh-desktop-message-edit",
         "filter": [
           "package.json",
           "cordis.patch.yml",
