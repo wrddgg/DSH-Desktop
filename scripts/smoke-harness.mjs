@@ -32,14 +32,19 @@ try {
 
   const { ensureDesktopProfile } = await import(pathToFileURL(profileRunner).href)
   const home = join(temporary, 'home')
+  const safe = process.argv.includes('--safe')
+  const disabledPlugins = process.argv.includes('--disabled') ? ['@wrddgg/dsh-desktop-file-ref'] : []
   await ensureDesktopProfile(home, {
     desktopPlugin: join(root, 'packages', 'dsh-desktop-plugin'),
     fileRefPlugin: join(root, 'packages', 'dsh-desktop-file-ref'),
+  }, {
+    safe,
+    disabledPlugins,
   })
 
   const child = spawn(
     electron,
-    ['--expose-internals', dshBin, '--profile', 'dsh-desktop-app', '--port', '0'],
+    ['--expose-internals', dshBin, '--profile', safe ? 'dsh-desktop-app-safe' : 'dsh-desktop-app', '--port', '0'],
     {
       cwd: root,
       env: {
@@ -91,12 +96,17 @@ try {
 
   const endpoint = `${url}/plugins/@wrddgg/dsh-desktop-file-ref/client.js`
   const bundleResponse = await fetch(endpoint, { signal: AbortSignal.timeout(5000) })
-  if (!bundleResponse.ok) throw new Error(`Client bundle endpoint ${endpoint} -> ${bundleResponse.status}`)
-  const body = await bundleResponse.text()
-  if (!body.includes('dsh-desktop-file-ref')) throw new Error('Served bundle does not look like the file-ref plugin')
-  if (!body.includes('__ModuleLoader__')) throw new Error('Served bundle is missing the module-loader handoff')
-
-  console.log(`Harness smoke passed: ${url} ready, file-ref client bundle served (${body.length} bytes).`)
+  if (disabledPlugins.length === 0) {
+    if (!bundleResponse.ok) throw new Error(`Client bundle endpoint ${endpoint} -> ${bundleResponse.status}`)
+    const body = await bundleResponse.text()
+    if (!body.includes('dsh-desktop-file-ref')) throw new Error('Served bundle does not look like the file-ref plugin')
+    if (!body.includes('__ModuleLoader__')) throw new Error('Served bundle is missing the module-loader handoff')
+    console.log(`Harness smoke passed: ${url} ready, file-ref client bundle served (${body.length} bytes).`)
+  } else {
+    // With the plugin disabled the endpoint must NOT serve the bundle.
+    if (bundleResponse.ok) throw new Error(`Disabled plugin bundle unexpectedly served at ${endpoint}`)
+    console.log(`Harness smoke passed (disabled mode): ${url} ready, file-ref bundle correctly absent.`)
+  }
 
   // Tear the harness down the same way the supervisor does (taskkill tree,
   // after detaching the stdio pipes) to avoid the Electron-node teardown
