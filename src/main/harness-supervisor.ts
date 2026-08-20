@@ -4,11 +4,21 @@ import { EventEmitter } from 'node:events'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { DESKTOP_VERSION, type RuntimeState } from '../shared/contracts.js'
+import { BootStateStore } from './boot-state.js'
 import { AppLogger } from './logger.js'
-import { ensureDesktopProfile, type PluginSources } from './profile.js'
+import {
+  ensureDesktopProfile,
+  NORMAL_PROFILE,
+  profileDirOf,
+  restoreProfile,
+  SAFE_PROFILE,
+  snapshotProfile,
+  type PluginSources,
+} from './profile.js'
 import { parseHarnessUrl } from './readiness.js'
 
 const START_TIMEOUT_MS = 90_000
+const HEALTH_WINDOW_MS = 60_000
 const MAX_LOG_LINES = 80
 
 function wait(milliseconds: number): Promise<void> {
@@ -47,11 +57,18 @@ export class HarnessSupervisor extends EventEmitter {
   readonly #pluginSources: PluginSources
   readonly #dshBin: string | undefined
   readonly #logger: AppLogger
+  readonly #bootStore: BootStateStore
+  readonly #lastGoodDir: string
   #child: ChildProcess | undefined
   #startupTimer: NodeJS.Timeout | undefined
+  #healthTimer: NodeJS.Timeout | undefined
   #probingUrl: string | undefined
   #streamBuffers = new Map<string, string>()
   #logTail: string[] = []
+  #mode: 'normal' | 'safe' = 'normal'
+  #bootRecord = { startedAt: 0, outcome: 'ok' as 'ok' | 'crashed', mode: 'normal' as 'normal' | 'safe' }
+  #reachedReady = false
+  #healthy = false
   #state: RuntimeState = {
     status: 'stopped',
     message: 'Harness 尚未启动',
@@ -64,6 +81,8 @@ export class HarnessSupervisor extends EventEmitter {
     pluginSources: PluginSources
     dshBin: string | undefined
     logger: AppLogger
+    bootStore: BootStateStore
+    lastGoodDir: string
   }) {
     super()
     this.#dshHome = options.dshHome
@@ -71,6 +90,8 @@ export class HarnessSupervisor extends EventEmitter {
     this.#pluginSources = options.pluginSources
     this.#dshBin = options.dshBin
     this.#logger = options.logger
+    this.#bootStore = options.bootStore
+    this.#lastGoodDir = options.lastGoodDir
   }
 
   public get state(): RuntimeState {
@@ -81,27 +102,41 @@ export class HarnessSupervisor extends EventEmitter {
     return this.#state.url
   }
 
+  public get mode(): 'normal' | 'safe' {
+    return this.#mode
+  }
+
   public async start(): Promise<void> {
     if (this.#child !== undefined) return
 
-    this.#setState({ status: 'starting', message: '正在准备 Desktop 配置…' })
+    const safe = this.#mode === 'safe'
+    const disabledPlugins = this.#bootStore.state.disabledPlugins
+
+    this.#setState({ status: 'starting', message: safe ? '正在准备安全模式配置…' : '正在准备 Desktop 配置…' })
     try {
-      await ensureDesktopProfile(this.#dshHome, this.#pluginSources)
+      await ensureDesktopProfile(this.#dshHome, this.#pluginSources, {
+        safe,
+        disabledPlugins,
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       await this.#logger.write('desktop:error', message)
       this.#setState({ status: 'error', message })
       return
     }
-    await this.#logger.write('desktop', `Using DSH_HOME=${this.#dshHome}`)
+    await this.#logger.write('desktop', `Using DSH_HOME=${this.#dshHome} profile=${safe ? SAFE_PROFILE : NORMAL_PROFILE}`)
 
     const dshBin = resolveDshBin(this.#dshBin)
     this.#setState({ status: 'starting', message: '正在启动 DeepSeek Harness…' })
     await this.#logger.write('desktop', `Starting ${dshBin}`)
 
+    this.#reachedReady = false
+    this.#healthy = false
+    this.#bootRecord = this.#bootStore.recordStart(this.#mode)
+
     const child = spawn(
       process.execPath,
-      ['--expose-internals', dshBin, '--profile', 'dsh-desktop-app', '--port', '0'],
+      ['--expose-internals', dshBin, '--profile', safe ? SAFE_PROFILE : NORMAL_PROFILE, '--port', '0'],
       {
         cwd: this.#workspace,
         env: cleanEnvironment({
@@ -130,6 +165,7 @@ export class HarnessSupervisor extends EventEmitter {
     child.stderr?.on('data', (chunk: string) => this.#consume(chunk, 'dsh:error'))
     child.on('exit', (code) => {
       this.#clearStartupTimer()
+      this.#clearHealthTimer()
       this.#flush('dsh')
       this.#flush('dsh:error')
       this.#child = undefined
@@ -138,9 +174,20 @@ export class HarnessSupervisor extends EventEmitter {
         return
       }
 
+      // A boot that never reached ready, or died inside the health window,
+      // counts as a crash for crash-loop detection.
+      if (!this.#reachedReady || !this.#healthy) {
+        this.#bootStore.recordCrash(
+          this.#bootRecord,
+          code,
+          detectSuspectedPlugin(this.#logTail),
+        )
+      }
+
       const message = `Harness 已退出（代码 ${code ?? 'unknown'}）`
       void this.#logger.write('desktop', message)
       this.#setState({ status: 'error', message })
+      this.emit('boot-state-changed', this.#bootStore.snapshot())
     })
 
     this.#startupTimer = setTimeout(() => {
@@ -158,12 +205,48 @@ export class HarnessSupervisor extends EventEmitter {
     await this.start()
   }
 
+  public async restartSafe(): Promise<void> {
+    this.#mode = 'safe'
+    await this.stop()
+    await this.start()
+  }
+
+  public async restartNormal(): Promise<void> {
+    this.#mode = 'normal'
+    await this.stop()
+    await this.start()
+  }
+
+  /** Disable the suspected plugin, leave Safe Mode, and boot the normal profile. */
+  public async restartWithPluginsDisabled(suspectedPlugin?: string): Promise<void> {
+    if (suspectedPlugin !== undefined) this.#bootStore.addDisabledPlugin(suspectedPlugin)
+    this.#mode = 'normal'
+    await this.stop()
+    await this.start()
+  }
+
+  /** Restore the Last Known Good profile snapshot and boot it. */
+  public async recoverLastGood(): Promise<void> {
+    const profileDir = profileDirOf(this.#dshHome, false)
+    try {
+      await restoreProfile(this.#lastGoodDir, profileDir)
+      await this.#logger.write('desktop', 'Restored the Last Known Good profile')
+    } catch (error) {
+      await this.#logger.write('desktop:error', error instanceof Error ? error.message : String(error))
+      throw error
+    }
+    this.#mode = 'normal'
+    await this.stop()
+    await this.start()
+  }
+
   public async stop(): Promise<void> {
     const child = this.#child
     if (child === undefined) return
 
     this.#setState({ status: 'stopping', message: '正在安全停止 Harness…' })
     this.#clearStartupTimer()
+    this.#clearHealthTimer()
 
     let exited = false
     const exit = new Promise<void>((resolve) => {
@@ -187,6 +270,11 @@ export class HarnessSupervisor extends EventEmitter {
   #clearStartupTimer(): void {
     if (this.#startupTimer !== undefined) clearTimeout(this.#startupTimer)
     this.#startupTimer = undefined
+  }
+
+  #clearHealthTimer(): void {
+    if (this.#healthTimer !== undefined) clearTimeout(this.#healthTimer)
+    this.#healthTimer = undefined
   }
 
   #consume(chunk: string, scope: string): void {
@@ -230,8 +318,18 @@ export class HarnessSupervisor extends EventEmitter {
         const response = await fetch(url, { signal: AbortSignal.timeout(1_000) })
         if (response.status < 500) {
           this.#clearStartupTimer()
+          this.#reachedReady = true
           await this.#logger.write('desktop', `Harness accepted connections at ${url}`)
           this.#setState({ status: 'ready', message: 'Harness 已就绪', url })
+          this.#healthTimer = setTimeout(() => {
+            this.#healthy = true
+            this.#bootStore.markLastGood()
+            void snapshotProfile(profileDirOf(this.#dshHome, false), this.#lastGoodDir)
+              .then(() => this.#logger.write('desktop', 'Last Known Good profile snapshot updated'))
+              .catch((error: unknown) => {
+                void this.#logger.write('desktop:error', error instanceof Error ? error.message : String(error))
+              })
+          }, HEALTH_WINDOW_MS)
           return
         }
       } catch {
@@ -252,4 +350,32 @@ export class HarnessSupervisor extends EventEmitter {
     this.#state = { ...next, logTail: [...this.#logTail] }
     this.emit('state', this.#state)
   }
+}
+
+const ALLOWED_PACKAGE_PREFIXES = ['@deepseek-ai/', '@wrddgg/']
+
+/**
+ * Heuristic: the last non-official package name in the crash tail. Matches
+ * scoped npm names (@scope/name) and bare dsh plugin names (dsh-…), skipping
+ * names that are really the tail of a scoped reference.
+ */
+export function detectSuspectedPlugin(lines: readonly string[]): string | undefined {
+  const scopedPattern = /@[a-z0-9-]+\/[a-z0-9.-]+/gi
+  const barePattern = /\b[a-z0-9-]*dsh-[a-z0-9-]+/gi
+  let suspect: string | undefined
+  for (const line of lines) {
+    for (const match of line.match(scopedPattern) ?? []) {
+      if (ALLOWED_PACKAGE_PREFIXES.some(prefix => match.startsWith(prefix))) continue
+      suspect = match
+    }
+    for (const match of line.matchAll(barePattern)) {
+      const name = match[0]
+      if (name === undefined) continue
+      const start = match.index ?? 0
+      if (start > 0 && line[start - 1] === '/') continue // scoped tail
+      if (ALLOWED_PACKAGE_PREFIXES.some(prefix => name.startsWith(prefix))) continue
+      suspect = name
+    }
+  }
+  return suspect
 }

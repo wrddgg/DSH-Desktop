@@ -1,4 +1,4 @@
-export const DESKTOP_VERSION = '1.1.0'
+export const DESKTOP_VERSION = '1.2.0'
 export const DSH_VERSION = '0.1.0-rc.7'
 export const RELEASES_URL = 'https://github.com/wrddgg/DSH-Desktop/releases'
 
@@ -44,6 +44,27 @@ export interface DesktopInfo {
   releasesUrl: string
 }
 
+export interface BootStateSnapshot {
+  crashLoop: boolean
+  suspectedPlugin?: string
+  lastGoodAt?: number
+  disabledPlugins: readonly string[]
+}
+
+export interface PtyCreateResult {
+  ok: boolean
+  id?: string
+  message?: string
+}
+
+export interface PtySessionSummary {
+  id: string
+  cwd: string
+  shell: string
+  cols: number
+  rows: number
+}
+
 export interface DshDesktopApi {
   getInfo(): Promise<DesktopInfo>
   getUpdateState(): Promise<UpdateState>
@@ -57,12 +78,30 @@ export interface DshDesktopApi {
   getRuntimeState(): Promise<RuntimeState>
   onUpdateState(listener: (state: UpdateState) => void): () => void
   onRuntimeState(listener: (state: RuntimeState) => void): () => void
+  /** Crash-loop / Last Known Good state for the launch screen. */
+  getBootState(): Promise<BootStateSnapshot>
+  onBootState(listener: (state: BootStateSnapshot) => void): () => void
+  startSafeMode(): Promise<void>
+  startWithPluginsDisabled(): Promise<void>
+  recoverLastGood(): Promise<void>
   /** Resolve the absolute filesystem path behind a dropped browser File. */
   getPathForFile(file: File): string
   fs: DshDesktopFsApi
   dialog: DshDesktopDialogApi
   secret: DshDesktopSecretApi
   git: DshDesktopGitApi
+  pty: DshDesktopPtyApi
+}
+
+export interface DshDesktopPtyApi {
+  available(): Promise<boolean>
+  list(): Promise<{ ok: boolean; sessions?: PtySessionSummary[] }>
+  create(options?: { cwd?: string; cols?: number; rows?: number; shell?: string }): Promise<PtyCreateResult>
+  write(id: string, data: string): Promise<{ ok: boolean; message?: string }>
+  resize(id: string, cols: number, rows: number): Promise<{ ok: boolean; message?: string }>
+  kill(id: string): Promise<{ ok: boolean; message?: string }>
+  onData(listener: (id: string, data: string) => void): () => void
+  onExit(listener: (id: string, exitCode: number) => void): () => void
 }
 
 export interface FsEntry {

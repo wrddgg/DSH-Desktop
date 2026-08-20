@@ -438,4 +438,11 @@ V1.1 扩展：行区间（`@file:12-40`，Cursor 式）、目录树概览、`<fi
 - **0xC0000142 修复**：supervisor 注入 `DSH_PERMISSION_MODE=danger-full-access`（见 §7 风险表）。
 - **验证**：typecheck ✓ / 35 测试 ✓ / 无头 harness 冒烟 ✓（`scripts/smoke-harness.mjs`：真实 profile + 双插件组合 + file-ref 客户端 bundle 端点可达）。
 - **打包**：本地 NSIS 安装包 `release/DSH-Desktop-Setup-1.1.0-x64.exe` 构建完成（`--publish never`，未上传任何 release）；打包后运行时审计 528 包/2304 边 ✓、node-pty 冒烟 ✓、双插件资源已核对入包。**待用户安装测试**。
-- **待办**：Safe Mode / LKG（§5.1）、Workbench 面板（§5.2）、Change Set（§5.3）——下一轮。
+
+## V0.2 第二轮（本轮）✅
+
+- **Safe Mode / crash-loop / LKG（P0-2 补全 + P0-3 + P0-4）**：`src/main/boot-state.ts`（启动记录持久化、时间窗 crash-loop 判定、插件黑名单、LKG 时间戳）；supervisor 区分 normal/safe 模式启动、健康窗口（60s）标记 LKG 并快照 profile、疑似插件启发式（scoped + 裸名 dsh-* 双正则）；splash 增加恢复对话框（安全模式启动 / 禁用插件并启动 / 恢复上次已知良好 / 查看日志）；`profile.ts` 支持 safe 变体 profile（`dsh-desktop-app-safe`）与插件黑名单过滤、profile 快照/恢复。
+- **pty 桥（②补全）**：`src/main/bridge-pty.ts`——复用打包内 node-pty（零原生依赖进桌面包），会话管理 + data/exit 事件推送到页面。
+- **验证**：typecheck ✓ / 48 测试 ✓（boot-state 8 + pty 3 + 既有）/ 无头 harness 冒烟 ✓。
+- **打包**：`release/DSH-Desktop-Setup-1.2.0-x64.exe`（本地构建，未上传）。
+- **待办**：Workbench 面板（§5.2）、Change Set（§5.3）——下一轮。

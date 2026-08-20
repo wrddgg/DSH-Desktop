@@ -7,9 +7,11 @@ import {
   type DesktopInfo,
 } from '../shared/contracts.js'
 import { AppUpdater } from './app-updater.js'
+import { BootStateStore } from './boot-state.js'
 import { DialogBridge } from './bridge-dialog.js'
 import { FsBridge } from './bridge-fs.js'
 import { GitBridge } from './bridge-git.js'
+import { PtyBridge } from './bridge-pty.js'
 import { SecretStore } from './bridge-secret.js'
 import { HarnessSupervisor } from './harness-supervisor.js'
 import { AppLogger } from './logger.js'
@@ -37,12 +39,15 @@ export function registerIpc(options: {
   updater: AppUpdater
   supervisor: HarnessSupervisor
   logger: AppLogger
+  bootStore: BootStateStore
   fsBridge: FsBridge
   dialogBridge: DialogBridge
   secretStore: SecretStore
   gitBridge: GitBridge
+  ptyBridge: PtyBridge
+  send: (channel: string, ...args: unknown[]) => void
 }): void {
-  const { updater, supervisor, logger, fsBridge, dialogBridge, secretStore, gitBridge } = options
+  const { updater, supervisor, logger, bootStore, fsBridge, dialogBridge, secretStore, gitBridge, ptyBridge, send } = options
   const handle = <T>(channel: string, action: (...args: unknown[]) => T | Promise<T>): void => {
     ipcMain.handle(channel, async (event, ...args) => {
       if (!trustedSender(event, supervisor)) throw new Error('Blocked untrusted Desktop IPC sender')
@@ -149,4 +154,45 @@ export function registerIpc(options: {
     return gitBridge.unstage(stringArg(cwd, 'cwd'), paths as string[])
   })
   handle('desktop:git:commit', (cwd: unknown, message: unknown) => gitBridge.commit(stringArg(cwd, 'cwd'), stringArg(message, 'message')))
+
+  // ---- Recovery / Safe Mode ---------------------------------------------
+
+  handle('desktop:get-boot-state', () => bootStore.snapshot())
+  handle('desktop:start-safe-mode', () => supervisor.restartSafe())
+  handle('desktop:start-with-plugins-disabled', () => {
+    const snapshot = bootStore.snapshot()
+    return supervisor.restartWithPluginsDisabled(snapshot.suspectedPlugin)
+  })
+  handle('desktop:recover-last-good', () => supervisor.recoverLastGood())
+
+  // ---- Terminal bridge --------------------------------------------------
+
+  handle('desktop:pty:available', () => ptyBridge.available)
+  handle('desktop:pty:list', () => ({ ok: true, sessions: ptyBridge.list() }))
+  handle('desktop:pty:create', (options: unknown) => {
+    const raw = options !== null && typeof options === 'object' ? options as {
+      cwd?: unknown
+      cols?: unknown
+      rows?: unknown
+      shell?: unknown
+    } : {}
+    const createOptions: { cwd?: string; cols?: number; rows?: number; shell?: string } = {}
+    if (typeof raw.cwd === 'string' && raw.cwd.length > 0) createOptions.cwd = raw.cwd
+    if (typeof raw.cols === 'number' && Number.isFinite(raw.cols)) createOptions.cols = raw.cols
+    if (typeof raw.rows === 'number' && Number.isFinite(raw.rows)) createOptions.rows = raw.rows
+    if (typeof raw.shell === 'string' && raw.shell.length > 0) createOptions.shell = raw.shell
+    return ptyBridge.create(createOptions)
+  })
+  handle('desktop:pty:write', (id: unknown, data: unknown) => {
+    if (typeof data !== 'string' || data.length > 1024 * 1024) throw new Error('Invalid terminal input')
+    return ptyBridge.write(stringArg(id, 'id'), data)
+  })
+  handle('desktop:pty:resize', (id: unknown, cols: unknown, rows: unknown) => {
+    if (typeof cols !== 'number' || typeof rows !== 'number') throw new Error('Invalid terminal size')
+    return ptyBridge.resize(stringArg(id, 'id'), cols, rows)
+  })
+  handle('desktop:pty:kill', (id: unknown) => ptyBridge.kill(stringArg(id, 'id')))
+
+  ptyBridge.on('data', (id: string, data: string) => send('desktop:pty:data', id, data))
+  ptyBridge.on('exit', (id: string, exitCode: number) => send('desktop:pty:exit', id, exitCode))
 }

@@ -46,6 +46,36 @@ describe('ensureDesktopProfile', () => {
     expect(fileRef.dsh.client.platform).toBe('web')
   })
 
+  it('creates a Safe Mode profile with the official + core stack only', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'dsh-desktop-profile-'))
+    temporary.push(home)
+
+    const result = await ensureDesktopProfile(home, {}, { safe: true })
+    expect(result.profileDir.endsWith('dsh-desktop-app-safe')).toBe(true)
+    const manifest = JSON.parse(await readFile(join(result.profileDir, 'package.json'), 'utf8'))
+    expect(manifest.name).toBe('@dsh/profile-desktop-app-safe')
+    expect(manifest.dsh.profile.bundles).toEqual([
+      '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-web-app',
+      '@wrddgg/dsh-desktop-plugin',
+      '@wrddgg/dsh-desktop-file-ref',
+    ])
+  })
+
+  it('drops blacklisted plugins from bundles, dependencies, and copies', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'dsh-desktop-profile-'))
+    temporary.push(home)
+
+    const result = await ensureDesktopProfile(home, {}, { disabledPlugins: ['@wrddgg/dsh-desktop-file-ref'] })
+    const manifest = JSON.parse(await readFile(join(result.profileDir, 'package.json'), 'utf8'))
+    expect(manifest.dsh.profile.bundles).not.toContain('@wrddgg/dsh-desktop-file-ref')
+    expect(manifest.dependencies).not.toHaveProperty('@wrddgg/dsh-desktop-file-ref')
+    await expect(readFile(
+      join(result.profileDir, 'node_modules', '@wrddgg', 'dsh-desktop-file-ref', 'package.json'),
+      'utf8',
+    )).rejects.toThrow()
+  })
+
   it('refuses to overwrite an unmanaged Desktop app profile', async () => {
     const home = await mkdtemp(join(tmpdir(), 'dsh-desktop-profile-'))
     temporary.push(home)

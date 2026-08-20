@@ -2,9 +2,11 @@ import { app } from 'electron'
 import { join } from 'node:path'
 import type { RuntimeState, UpdateState } from '../shared/contracts.js'
 import { AppUpdater } from './app-updater.js'
+import { BootStateStore } from './boot-state.js'
 import { DialogBridge } from './bridge-dialog.js'
 import { FsBridge } from './bridge-fs.js'
 import { GitBridge } from './bridge-git.js'
+import { PtyBridge } from './bridge-pty.js'
 import { SecretStore } from './bridge-secret.js'
 import { HarnessSupervisor } from './harness-supervisor.js'
 import { registerIpc } from './ipc.js'
@@ -19,6 +21,7 @@ if (!hasLock) {
   let supervisor: HarnessSupervisor | undefined
   let desktopWindow: DesktopWindow | undefined
   let updater: AppUpdater | undefined
+  let ptyBridge: PtyBridge | undefined
 
   app.on('second-instance', () => desktopWindow?.focus())
 
@@ -27,6 +30,9 @@ if (!hasLock) {
 
     const logger = new AppLogger(join(app.getPath('userData'), 'logs', 'desktop.log'))
     await logger.write('desktop', `Starting DSH Desktop ${app.getVersion()}`)
+
+    const bootStore = new BootStateStore(join(app.getPath('userData'), 'boot-state.json'))
+    await bootStore.load()
 
     supervisor = new HarnessSupervisor({
       dshHome: join(app.getPath('userData'), 'harness'),
@@ -49,6 +55,8 @@ if (!hasLock) {
           )
         : undefined,
       logger,
+      bootStore,
+      lastGoodDir: join(app.getPath('userData'), 'last-good-profile'),
     })
     updater = new AppUpdater(logger)
     desktopWindow = new DesktopWindow(supervisor)
@@ -60,8 +68,20 @@ if (!hasLock) {
     const dialogBridge = new DialogBridge(() => desktopWindow?.browserWindow)
     const secretStore = new SecretStore((scope, message) => void logger.write(scope, message))
     const gitBridge = new GitBridge()
+    ptyBridge = new PtyBridge({ fallbackCwd: app.getPath('documents') })
 
-    registerIpc({ updater, supervisor, logger, fsBridge, dialogBridge, secretStore, gitBridge })
+    registerIpc({
+      updater,
+      supervisor,
+      logger,
+      bootStore,
+      fsBridge,
+      dialogBridge,
+      secretStore,
+      gitBridge,
+      ptyBridge,
+      send: (channel, ...args) => desktopWindow?.send(channel, ...args),
+    })
     supervisor.on('state', (state: RuntimeState) => {
       desktopWindow?.sendRuntimeState(state)
       if (state.status === 'ready' && state.url !== undefined) {
@@ -71,6 +91,9 @@ if (!hasLock) {
             void logger.write('desktop:error', error instanceof Error ? error.stack ?? error.message : String(error))
           })
       }
+    })
+    supervisor.on('boot-state-changed', (snapshot) => {
+      desktopWindow?.sendBootState(snapshot)
     })
     updater.on('state', (state: UpdateState) => desktopWindow?.sendUpdateState(state))
     updater.on('notification-clicked', () => desktopWindow?.focus())
@@ -88,6 +111,7 @@ if (!hasLock) {
   app.on('window-all-closed', () => app.quit())
   app.on('before-quit', () => {
     updater?.stopAutomaticChecks()
+    ptyBridge?.dispose()
     if (supervisor !== undefined) void supervisor.stop()
   })
 }

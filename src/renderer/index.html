@@ -43,6 +43,16 @@
           <button id="retry-button" class="primary-button" type="button">重新启动</button>
           <button id="logs-button" class="secondary-button" type="button">打开日志</button>
         </div>
+        <div id="crash-actions" class="crash-actions" hidden>
+          <p class="crash-lead">上一次启动失败。</p>
+          <p id="crash-suspect" class="crash-suspect" hidden></p>
+          <div class="crash-buttons">
+            <button id="safe-mode-button" class="primary-button" type="button">安全模式启动</button>
+            <button id="disable-plugin-button" class="secondary-button" type="button">禁用插件并启动</button>
+            <button id="recover-button" class="secondary-button" type="button">恢复上次已知良好</button>
+          </div>
+          <p class="crash-note">安全模式只加载官方 DSH 与桌面核心插件，第三方插件不会启动。</p>
+        </div>
         <details id="log-details" hidden>
           <summary>启动详情</summary>
           <pre id="log-tail"></pre>

@@ -1,7 +1,7 @@
 import { BrowserWindow, Menu, app, shell, session } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { RuntimeState, UpdateState } from '../shared/contracts.js'
+import type { BootStateSnapshot, RuntimeState, UpdateState } from '../shared/contracts.js'
 import { HarnessSupervisor } from './harness-supervisor.js'
 import { isAllowedHarnessUrl } from './readiness.js'
 
@@ -79,14 +79,20 @@ export class DesktopWindow {
   }
 
   public sendRuntimeState(state: RuntimeState): void {
-    if (this.#window !== undefined && !this.#window.isDestroyed()) {
-      this.#window.webContents.send('desktop:runtime-state', state)
-    }
+    this.send('desktop:runtime-state', state)
   }
 
   public sendUpdateState(state: UpdateState): void {
+    this.send('desktop:update-state', state)
+  }
+
+  public sendBootState(state: BootStateSnapshot): void {
+    this.send('desktop:boot-state', state)
+  }
+
+  public send(channel: string, ...args: unknown[]): void {
     if (this.#window !== undefined && !this.#window.isDestroyed()) {
-      this.#window.webContents.send('desktop:update-state', state)
+      this.#window.webContents.send(channel, ...args)
     }
   }
 

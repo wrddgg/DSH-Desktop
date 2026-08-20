@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type {
+  BootStateSnapshot,
   DesktopInfo,
   DshDesktopApi,
   RuntimeState,
@@ -27,6 +28,15 @@ const api: DshDesktopApi = {
     ipcRenderer.on('desktop:runtime-state', handler)
     return () => ipcRenderer.removeListener('desktop:runtime-state', handler)
   },
+  getBootState: () => ipcRenderer.invoke('desktop:get-boot-state') as Promise<BootStateSnapshot>,
+  onBootState: (listener) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: BootStateSnapshot): void => listener(state)
+    ipcRenderer.on('desktop:boot-state', handler)
+    return () => ipcRenderer.removeListener('desktop:boot-state', handler)
+  },
+  startSafeMode: () => ipcRenderer.invoke('desktop:start-safe-mode') as Promise<void>,
+  startWithPluginsDisabled: () => ipcRenderer.invoke('desktop:start-with-plugins-disabled') as Promise<void>,
+  recoverLastGood: () => ipcRenderer.invoke('desktop:recover-last-good') as Promise<void>,
   getPathForFile: (file: File): string => {
     try {
       return webUtils.getPathForFile(file)
@@ -57,6 +67,24 @@ const api: DshDesktopApi = {
     stage: (cwd, paths) => ipcRenderer.invoke('desktop:git:stage', cwd, paths),
     unstage: (cwd, paths) => ipcRenderer.invoke('desktop:git:unstage', cwd, paths),
     commit: (cwd, message) => ipcRenderer.invoke('desktop:git:commit', cwd, message),
+  },
+  pty: {
+    available: () => ipcRenderer.invoke('desktop:pty:available') as Promise<boolean>,
+    list: () => ipcRenderer.invoke('desktop:pty:list'),
+    create: (options) => ipcRenderer.invoke('desktop:pty:create', options ?? {}),
+    write: (id, data) => ipcRenderer.invoke('desktop:pty:write', id, data),
+    resize: (id, cols, rows) => ipcRenderer.invoke('desktop:pty:resize', id, cols, rows),
+    kill: (id) => ipcRenderer.invoke('desktop:pty:kill', id),
+    onData: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, id: string, data: string): void => listener(id, data)
+      ipcRenderer.on('desktop:pty:data', handler)
+      return () => ipcRenderer.removeListener('desktop:pty:data', handler)
+    },
+    onExit: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, id: string, exitCode: number): void => listener(id, exitCode)
+      ipcRenderer.on('desktop:pty:exit', handler)
+      return () => ipcRenderer.removeListener('desktop:pty:exit', handler)
+    },
   },
 }
 
