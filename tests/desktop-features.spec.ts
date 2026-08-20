@@ -35,8 +35,8 @@ describe('new desktop plugin packages', () => {
     expect(manifest.dsh.client.platform).toBe('web')
     const client = await readFile(resolve(root, 'lib', 'client.js'), 'utf8')
     expect(client).toContain('"@wrddgg/dsh-desktop-vision"')
-    expect(client).toContain('desktopModelCapabilities')
-    expect(client).toContain('desktopVision')
+    expect(client).toContain('desktop-model-capabilities')
+    expect(client).toContain('desktop-vision')
     expect(client).toContain('dshVisionWizard')
   })
 
