@@ -15,6 +15,14 @@
       "clientBundle": "lib/client.js",
       "description": "Codex-style drag & drop file references and @file search",
       "bridge": ["fs", "dialog"]
+    },
+    {
+      "id": "@wrddgg/dsh-desktop-workbench",
+      "packageDir": "packages/dsh-desktop-workbench",
+      "clientEntry": "src/client.tsx",
+      "clientBundle": "lib/client.js",
+      "description": "Workbench panel with Files / Git / Terminal tabs",
+      "bridge": ["fs", "dialog", "git", "pty"]
     }
   ]
 }

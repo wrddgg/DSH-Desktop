@@ -445,4 +445,11 @@ V1.1 扩展：行区间（`@file:12-40`，Cursor 式）、目录树概览、`<fi
 - **pty 桥（②补全）**：`src/main/bridge-pty.ts`——复用打包内 node-pty（零原生依赖进桌面包），会话管理 + data/exit 事件推送到页面。
 - **验证**：typecheck ✓ / 48 测试 ✓（boot-state 8 + pty 3 + 既有）/ 无头 harness 冒烟 ✓。
 - **打包**：`release/DSH-Desktop-Setup-1.2.0-x64.exe`（本地构建，未上传）。
-- **待办**：Workbench 面板（§5.2）、Change Set（§5.3）——下一轮。
+
+## V0.2 第三轮（本轮）✅
+
+- **Workbench 骨架（P0-6，⑤）**：新插件 `packages/dsh-desktop-workbench`（`@wrddgg/dsh-desktop-workbench`）——`shell.overlay` 浮动面板（可调宽、三标签、底部工作区指示）+ 触发入口（composer 工具行 + 侧栏底部）；**Files 标签**（目录树懒加载、面包屑、512KB 预览、原生选择文件夹）；**Git 标签**（分支/状态列表/暂存/取消暂存/差异/提交，走 git 桥）；**终端标签**（pty 桥会话：启动/关闭/输入执行/输出流，ANSI 剥离，xterm 留待 P1）；面板状态跨触发点共享（模块级 store）。
+- **构建管线修正**：`build-plugins.mjs` 设 `charset: 'utf8'`（产物中文可读、断言稳定）。
+- **验证**：typecheck ✓ / **56 测试全绿** / 无头冒烟三种模式全过（normal 双 bundle 服务 ✓、safe ✓、disabled 黑名单缺席 ✓）。
+- **打包**：`release/DSH-Desktop-Setup-1.3.0-x64.exe`（本地构建，未上传）。
+- **待办**：Change Set / Diff Review（§5.3）、Workbench 打磨（右栏停靠、xterm、CodeMirror）——下一轮。

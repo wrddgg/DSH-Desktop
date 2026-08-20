@@ -61,17 +61,17 @@ async function serializeFileRef(ref, read) {
   const attributeText = attributes.length > 0 ? ` ${attributes.join(" ")}` : "";
   if (ref.kind === "dir") {
     return `<file-ref kind="dir" path="${escaped}"${attributeText}/>
-\u8BF7\u5148\u5217\u51FA\u8BE5\u76EE\u5F55\u7684\u5185\u5BB9\uFF0C\u518D\u6309\u9700\u8BFB\u53D6\u5176\u4E2D\u7684\u6587\u4EF6\u3002`;
+请先列出该目录的内容，再按需读取其中的文件。`;
   }
   const size = ref.size ?? Number.POSITIVE_INFINITY;
   if (size <= MAX_INLINE_BYTES) {
     const result = await read(ref.path, MAX_INLINE_BYTES);
     if (!result.ok) {
-      throw new Error(`\u65E0\u6CD5\u8BFB\u53D6\u5F15\u7528\u6587\u4EF6\uFF1A${ref.path}`);
+      throw new Error(`无法读取引用文件：${ref.path}`);
     }
     if (result.binary) {
       return `<file-ref kind="file" path="${escaped}"${attributeText} binary="true"/>
-\u8BE5\u6587\u4EF6\u662F\u4E8C\u8FDB\u5236\u6587\u4EF6\uFF0C\u8BF7\u4F7F\u7528\u6587\u4EF6\u8BFB\u53D6\u5DE5\u5177\u6309\u9700\u8BFB\u53D6\u3002`;
+该文件是二进制文件，请使用文件读取工具按需读取。`;
     }
     if (!result.truncated) {
       return `<file-ref kind="file" path="${escaped}"${attributeText}>
@@ -80,7 +80,7 @@ ${result.content ?? ""}
     }
   }
   return `<file-ref kind="file" path="${escaped}"${attributeText}/>
-\u8BF7\u4F7F\u7528\u6587\u4EF6\u8BFB\u53D6\u5DE5\u5177\u8BFB\u53D6\u8BE5\u6587\u4EF6\u7684\u5185\u5BB9\u3002`;
+请使用文件读取工具读取该文件的内容。`;
 }
 
 // packages/dsh-desktop-file-ref/src/client.tsx
@@ -137,8 +137,8 @@ window.__ModuleLoader__?.load({
             if (!result || result.ok !== true || !Array.isArray(result.entries)) return [];
             return result.entries.map((entry) => ({
               name: entry.path,
-              description: entry.isDirectory ? "\u6587\u4EF6\u5939" : `\u6587\u4EF6 \xB7 ${formatSize(entry.size)}`,
-              icon: entry.isDirectory ? "\u{1F4C1}" : "\u{1F4C4}"
+              description: entry.isDirectory ? "文件夹" : `文件 · ${formatSize(entry.size)}`,
+              icon: entry.isDirectory ? "📁" : "📄"
             }));
           } catch {
             return [];
@@ -162,7 +162,7 @@ window.__ModuleLoader__?.load({
           async serialize(ref) {
             const stat = await api.fs.stat(ref);
             if (!stat || stat.ok !== true || stat.exists !== true) {
-              throw new Error(`\u5F15\u7528\u7684\u6587\u4EF6\u4E0D\u5B58\u5728\u6216\u65E0\u6CD5\u8BBF\u95EE\uFF1A${ref}`);
+              throw new Error(`引用的文件不存在或无法访问：${ref}`);
             }
             return serializeFileRef(
               {
@@ -335,24 +335,24 @@ window.__ModuleLoader__?.load({
         const overlay = dropState.active && dropState.hasNonImage ? React.createElement(DropOverlay, {
           disabled: !dropState.canAccept,
           labels: {
-            title: dropState.canAccept ? `\u677E\u5F00\u4EE5\u5F15\u7528 ${dropState.count} \u4E2A\u6587\u4EF6` : "\u5F53\u524D\u65E0\u6CD5\u63A5\u6536\u6587\u4EF6\u5F15\u7528",
-            desc: dropState.canAccept ? "\u56FE\u7247\u4ECD\u4F5C\u4E3A\u9644\u4EF6\u53D1\u9001\uFF1B\u6587\u4EF6\u4EE5\u8DEF\u5F84\u5F15\u7528\u4EA4\u7ED9\u6A21\u578B\u8BFB\u53D6" : void 0
+            title: dropState.canAccept ? `松开以引用 ${dropState.count} 个文件` : "当前无法接收文件引用",
+            desc: dropState.canAccept ? "图片仍作为附件发送；文件以路径引用交给模型读取" : void 0
           }
         }) : null;
         const attachButton = React.createElement("button", {
           type: "button",
           className: "dshFileRefAttach",
           disabled: busy || !sessionRef.current,
-          title: "\u5F15\u7528\u6587\u4EF6\uFF08\u4E5F\u53EF\u4EE5\u628A\u6587\u4EF6\u62D6\u8FDB\u5BF9\u8BDD\u533A\uFF09",
-          "aria-label": "\u5F15\u7528\u6587\u4EF6",
+          title: "引用文件（也可以把文件拖进对话区）",
+          "aria-label": "引用文件",
           onClick: () => void pickFiles()
-        }, IconPaperclipOutline16 ? React.createElement(IconPaperclipOutline16, { size: 16 }) : "\u{1F4CE}");
+        }, IconPaperclipOutline16 ? React.createElement(IconPaperclipOutline16, { size: 16 }) : "📎");
         return React.createElement(React.Fragment, null, attachButton, overlay);
       }
       try {
         ctx.slots.inject("conversation.input.left", function* () {
           yield ctx.slots.register(
-            { name: "conversation.input.left", id: "desktop-file-ref-attach", order: 35, label: "\u5F15\u7528\u6587\u4EF6" },
+            { name: "conversation.input.left", id: "desktop-file-ref-attach", order: 35, label: "引用文件" },
             AttachAction
           );
         });

@@ -24,6 +24,7 @@ describe('ensureDesktopProfile', () => {
       '@deepseek-ai/dsh-web-app',
       '@wrddgg/dsh-desktop-plugin',
       '@wrddgg/dsh-desktop-file-ref',
+      '@wrddgg/dsh-desktop-workbench',
     ])
     expect(await readFile(join(result.profileDir, 'cordis.patch.yml'), 'utf8')).toBe('[]\n')
     const plugin = JSON.parse(await readFile(
@@ -59,6 +60,7 @@ describe('ensureDesktopProfile', () => {
       '@deepseek-ai/dsh-web-app',
       '@wrddgg/dsh-desktop-plugin',
       '@wrddgg/dsh-desktop-file-ref',
+      '@wrddgg/dsh-desktop-workbench',
     ])
   })
 

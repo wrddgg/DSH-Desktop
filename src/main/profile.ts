@@ -24,21 +24,25 @@ const CORE_BUNDLES = [
   '@deepseek-ai/dsh-web-app',
   '@wrddgg/dsh-desktop-plugin',
   '@wrddgg/dsh-desktop-file-ref',
+  '@wrddgg/dsh-desktop-workbench',
 ] as const
 
 const CORE_DEPENDENCIES = {
   '@wrddgg/dsh-desktop-plugin': '1.0.0',
   '@wrddgg/dsh-desktop-file-ref': '0.1.0',
+  '@wrddgg/dsh-desktop-workbench': '0.1.0',
 } as const
 
 const BUNDLED_PLUGINS = [
   { name: '@wrddgg/dsh-desktop-plugin', version: '1.0.0' },
   { name: '@wrddgg/dsh-desktop-file-ref', version: '0.1.0' },
+  { name: '@wrddgg/dsh-desktop-workbench', version: '0.1.0' },
 ] as const
 
 export interface PluginSources {
   desktopPlugin?: string
   fileRefPlugin?: string
+  workbenchPlugin?: string
 }
 
 export interface ProfileOptions {
@@ -77,7 +81,7 @@ function buildManifest(options: ProfileOptions | undefined): ManagedProfileManif
   return {
     name: `@dsh/profile-${options?.safe === true ? 'desktop-app-safe' : 'desktop-app'}`,
     private: true,
-    version: '1.2.0',
+    version: '1.3.0',
     dependencies,
     dsh: { profile: { bundles } },
     dshDesktop: { managed: true, schema: 1 },
@@ -132,6 +136,7 @@ export async function ensureDesktopProfile(
   const overrides: Record<string, string | undefined> = {
     '@wrddgg/dsh-desktop-plugin': sources.desktopPlugin,
     '@wrddgg/dsh-desktop-file-ref': sources.fileRefPlugin,
+    '@wrddgg/dsh-desktop-workbench': sources.workbenchPlugin,
   }
 
   for (const plugin of BUNDLED_PLUGINS) {

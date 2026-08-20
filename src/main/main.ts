@@ -41,6 +41,7 @@ if (!hasLock) {
         ? {
             desktopPlugin: join(process.resourcesPath, 'dsh-desktop-plugin'),
             fileRefPlugin: join(process.resourcesPath, 'dsh-desktop-file-ref'),
+            workbenchPlugin: join(process.resourcesPath, 'dsh-desktop-workbench'),
           }
         : {},
       dshBin: app.isPackaged

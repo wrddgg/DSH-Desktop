@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-desktop-workbench
+      name: '@wrddgg/dsh-desktop-workbench'

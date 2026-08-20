@@ -37,6 +37,7 @@ try {
   await ensureDesktopProfile(home, {
     desktopPlugin: join(root, 'packages', 'dsh-desktop-plugin'),
     fileRefPlugin: join(root, 'packages', 'dsh-desktop-file-ref'),
+    workbenchPlugin: join(root, 'packages', 'dsh-desktop-workbench'),
   }, {
     safe,
     disabledPlugins,
@@ -95,13 +96,20 @@ try {
   if (!ready) throw new Error(`Harness never became ready at ${url}`)
 
   const endpoint = `${url}/plugins/@wrddgg/dsh-desktop-file-ref/client.js`
+  const workbenchEndpoint = `${url}/plugins/@wrddgg/dsh-desktop-workbench/client.js`
   const bundleResponse = await fetch(endpoint, { signal: AbortSignal.timeout(5000) })
   if (disabledPlugins.length === 0) {
     if (!bundleResponse.ok) throw new Error(`Client bundle endpoint ${endpoint} -> ${bundleResponse.status}`)
     const body = await bundleResponse.text()
     if (!body.includes('dsh-desktop-file-ref')) throw new Error('Served bundle does not look like the file-ref plugin')
     if (!body.includes('__ModuleLoader__')) throw new Error('Served bundle is missing the module-loader handoff')
-    console.log(`Harness smoke passed: ${url} ready, file-ref client bundle served (${body.length} bytes).`)
+
+    const workbenchResponse = await fetch(workbenchEndpoint, { signal: AbortSignal.timeout(5000) })
+    if (!workbenchResponse.ok) throw new Error(`Workbench bundle endpoint ${workbenchEndpoint} -> ${workbenchResponse.status}`)
+    const workbenchBody = await workbenchResponse.text()
+    if (!workbenchBody.includes('dshWorkbenchPanel')) throw new Error('Served bundle does not look like the workbench plugin')
+
+    console.log(`Harness smoke passed: ${url} ready, file-ref (${body.length}B) and workbench (${workbenchBody.length}B) client bundles served.`)
   } else {
     // With the plugin disabled the endpoint must NOT serve the bundle.
     if (bundleResponse.ok) throw new Error(`Disabled plugin bundle unexpectedly served at ${endpoint}`)

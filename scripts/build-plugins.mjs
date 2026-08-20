@@ -41,6 +41,7 @@ for (const plugin of registry.plugins ?? []) {
     external,
     logLevel: 'info',
     legalComments: 'none',
+    charset: 'utf8',
     define: {
       'process.env.NODE_ENV': '"production"',
     },
