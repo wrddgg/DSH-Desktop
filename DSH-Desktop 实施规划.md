@@ -437,4 +437,5 @@ V1.1 扩展：行区间（`@file:12-40`，Cursor 式）、目录树概览、`<fi
 - **Profile 多插件**：`ensureDesktopProfile` 支持双插件 bundles + 拷贝。
 - **0xC0000142 修复**：supervisor 注入 `DSH_PERMISSION_MODE=danger-full-access`（见 §7 风险表）。
 - **验证**：typecheck ✓ / 35 测试 ✓ / 无头 harness 冒烟 ✓（`scripts/smoke-harness.mjs`：真实 profile + 双插件组合 + file-ref 客户端 bundle 端点可达）。
+- **打包**：本地 NSIS 安装包 `release/DSH-Desktop-Setup-1.1.0-x64.exe` 构建完成（`--publish never`，未上传任何 release）；打包后运行时审计 528 包/2304 边 ✓、node-pty 冒烟 ✓、双插件资源已核对入包。**待用户安装测试**。
 - **待办**：Safe Mode / LKG（§5.1）、Workbench 面板（§5.2）、Change Set（§5.3）——下一轮。
