@@ -389,7 +389,7 @@ V1.1 扩展：行区间（`@file:12-40`，Cursor 式）、目录树概览、`<fi
 
 | 风险 | 等级 | 对策 |
 |---|---|---|
-| **PowerShell/子进程 `0xC0000142`**（PRD §4.2 记载） | 高→已修复 | ✅ **根因确认（实测）**：DSH 的 Windows ACL 沙箱 runner（restricted token）在 Electron 宿主下启动 pwsh 时触发 0xC0000142（连续 4 次复现）；full access（无 ACL）模式正常。**修复已实施**：桌面 spawn harness 时注入 `DSH_PERMISSION_MODE=danger-full-access`（dsh-base 的 sandbox-policy 配置直接读该环境变量），文件级约束由产品权限模式（P0-10）与审批承担。剩余对策：所有桌面桥子进程 `stdio: 'inherit'/'ignore'` 优先；打包后专项子进程兼容测试 |
+| **PowerShell/子进程 `0xC0000142`**（PRD §4.2 记载） | 高→已修复 | ✅ **根因已精确定位（本轮实测）**：① 不是权限拒绝——workspace-write 授权本身生效，崩溃发生在沙箱机制内部（命令"被允许后崩溃"，不是"被监管禁止"）；② 官方 ACL runner 在**纯 Node** 下运行 pwsh 7 完全正常（`acl-ok`，exit 0）；③ 同一 runner 在 **Electron node 模式**下（桌面版宿主形态）必然崩溃 0xC0000142，直接 spawn（无 runner）则正常 → **官方代码 bug、仅 Electron 嵌入场景触发，普通 CLI 用户不受影响**。触发链路：`SandboxPwshExecutor.run()` 在任意受限模式（read-only/workspace-write）下都会把 pwsh 包进 ACL runner（koffi restricted-token spawn），仅 `danger-full-access` 跳过。**桌面修复已实施**：spawn harness 注入 `DSH_PERMISSION_MODE=danger-full-access`（代价：文件级沙箱与自动审批关闭，由产品权限模式承担安全）。后续选项：① 上游提 issue（附本复现步骤）；② 桌面用 runtime-patches 对 `dsh-pwsh-sandbox` 打补丁——检测 `process.versions.electron` 时跳过 runner 包装，可把默认模式改回 workspace-write（保留文件沙箱 + ask 审批），需先审计全部 `ctx.sandbox.confine` 消费方（bash-sandbox win32 已禁用、fs-sandbox 为进程内无 spawn、terminal-bash 为 bash 系） |
 | rc 升级 breaking changes | 高 | D2 锁定 + canary + CI 兼容矩阵 + 升级时 slot/SlotMap diff 检测脚本 |
 | 官方 SlotMap / client plugin 接口在 rc.7 是 Developer Preview | 高 | 全部扩展走官方注册 API + 唯一 id/priority；升级前用类型快照做编译期差异报告；Safe Mode 兜底 |
 | `details` 槽位收编官方 DetailsPanel 的兼容风险（D4） | 中 | V0.2 先浮动面板过渡；V0.3 迁移时保留 tool 详情标签自渲染；必要时退回 overlay 方案 |
