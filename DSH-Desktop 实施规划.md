@@ -458,4 +458,11 @@ V1.1 扩展：行区间（`@file:12-40`，Cursor 式）、目录树概览、`<fi
 - **0xC0000142 方案 B 落地（官方代码零修改）**：新插件 `packages/dsh-desktop-pwsh`（`@wrddgg/dsh-desktop-pwsh`，默认内置）——`DesktopPwshExecutor extends` 官方 `SandboxPwshExecutor`；Electron 宿主下 `run/start` 走本地执行路径（`sandbox.confine` 零调用），非 Electron 与官方 1:1；profile 受管 `cordis.patch.yml` 禁用官方 `pwsh-sandbox`（黑名单该插件时自动保留官方条目）；`DSH_PERMISSION_MODE` 恢复 **workspace-write**（文件沙箱 + ask 审批全保留）。踩坑记录：`dsh-permission-presets` 强制要求 `ctx.shell.sandboxMode` 存在（"no sandboxMode 是配置错误"），故 Electron 下保留策略模式可见、仅绕 runner。
 - **验证**：typecheck ✓ / 63 测试全绿（新增 pwsh 插件 5 项 + profile 黑名单回退用例）/ `scripts/smoke-pwsh.mjs`（Electron 真实执行 pwsh + confine 零调用 + 策略模式可见）✓ / harness 冒烟三种 profile（workspace-write 模式）全过 ✓。
 - **打包**：`release/DSH-Desktop-Setup-1.4.0-x64.exe`（本地构建，未上传）。
+
+## 发布 v1.4.0（✅ 已上线 GitHub Releases，用户测试通过后发布）
+
+- 用户测试认可后执行发布：`git tag v1.4.0`（远端 tag 由 GitHub API 以 `target_commitish=main` 自动创建），创建 Release「DSH Desktop v1.4.0」（id 373542180），上传三个资产：`DSH-Desktop-Setup-1.4.0-x64.exe`（152,782,739 B，API 校验完整）、`.blockmap`（157,482 B）、`latest.yml`（359 B，electron-updater 更新检查入口，302 可达）。
+- **设置内"检查更新"现已生效**：已安装 1.0.0~1.3.x 的用户检查更新即可看到 v1.4.0 并自动下载安装；也可直接下载安装包。
+- 发布过程中踩坑记录：PowerShell 字符串插值 `"$base?name=…"` 会把 `?` 并入变量名导致 URL 变 `=latest.yml`（curl Bad hostname），须用 `${base}?name=…`；本机到 github.com 网络持续抖动，上传/验证需多次重试。
+- 待办：向官方提交 upstream issue（`upstream-issue-pwsh-acl-electron.md` 已起草）。
 - **待办**：Change Set / Diff Review（§5.3）、Workbench 打磨（右栏停靠、xterm、CodeMirror）——下一轮。
