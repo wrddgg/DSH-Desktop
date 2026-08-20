@@ -119,7 +119,7 @@ function buildManifest(options: ProfileOptions | undefined): ManagedProfileManif
   return {
     name: `@dsh/profile-${options?.safe === true ? 'desktop-app-safe' : 'desktop-app'}`,
     private: true,
-    version: '1.5.0',
+    version: '1.0.0',
     dependencies,
     dsh: { profile: { bundles } },
     dshDesktop: { managed: true, schema: 1 },

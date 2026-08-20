@@ -45,6 +45,13 @@ export class DesktopWindow {
     window.on('closed', () => {
       this.#window = undefined
     })
+    // Keep the window/taskbar name as "DSH Desktop": the DSH page replaces
+    // document.title with session titles, which otherwise overwrite the app
+    // name in the taskbar.
+    window.on('page-title-updated', (event) => {
+      event.preventDefault()
+      if (window.getTitle() !== 'DSH Desktop') window.setTitle('DSH Desktop')
+    })
 
     window.webContents.setWindowOpenHandler(({ url }) => {
       if (url.startsWith('https://')) void shell.openExternal(url)
