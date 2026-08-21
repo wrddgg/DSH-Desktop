@@ -361,6 +361,6 @@ window.__ModuleLoader__?.load({
       return typeof (file as any).path === 'string' ? (file as any).path : ''
     }
 
-    return { apply, inject: [] }
+    return { apply, inject: ['slots', 'sessions'] }
   },
 })

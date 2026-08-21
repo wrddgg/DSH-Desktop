@@ -107,6 +107,6 @@ window.__ModuleLoader__?.load({
         console.warn("[dsh-desktop-message-edit] chat node slot unavailable", error);
       }
     }
-    return { apply, inject: [] };
+    return { apply, inject: ["slots"] };
   }
 });

@@ -63,6 +63,10 @@ describe('DSH Desktop message-edit bundle behavior', () => {
       }
       throw new Error(`Unexpected client dependency: ${id}`)
     })
+    // Cordis 4 requires every ctx service property access to be injected;
+    // an empty inject list makes apply() fail with "cannot get property
+    // 'slots' without inject" and silently disables the whole plugin.
+    expect(plugin.inject).toEqual(expect.arrayContaining(['slots']))
     plugin.apply({
       slots: {
         inject: (_name: string, register: () => unknown) => {

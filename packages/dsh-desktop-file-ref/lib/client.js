@@ -379,6 +379,6 @@ window.__ModuleLoader__?.load({
       }
       return typeof file.path === "string" ? file.path : "";
     }
-    return { apply, inject: [] };
+    return { apply, inject: ["slots", "sessions"] };
   }
 });

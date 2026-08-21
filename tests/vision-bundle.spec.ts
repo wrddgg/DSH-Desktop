@@ -51,6 +51,8 @@ describe('DSH Desktop vision bundle behavior', () => {
       if (id === '@deepseek-ai/dsh-client-ui-primitives') return {}
       throw new Error(`Unexpected client dependency: ${id}`)
     })
+    // Cordis 4 requires every ctx service property access to be injected.
+    expect(plugin.inject).toEqual(expect.arrayContaining(['slots', 'sessions']))
 
     plugin.apply({
       get: () => undefined,

@@ -452,6 +452,6 @@ window.__ModuleLoader__?.load({
         console.warn("[dsh-desktop-vision] settings slot unavailable", error);
       }
     }
-    return { apply, inject: [] };
+    return { apply, inject: ["slots", "sessions"] };
   }
 });

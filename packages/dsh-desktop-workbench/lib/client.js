@@ -527,6 +527,6 @@ window.__ModuleLoader__?.load({
         console.warn("[dsh-desktop-workbench] sidebar slot unavailable", error);
       }
     }
-    return { apply, inject: [] };
+    return { apply, inject: ["slots", "sessions"] };
   }
 });
