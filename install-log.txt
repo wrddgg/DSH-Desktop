@@ -1,0 +1,5 @@
+﻿=== install started 2026-08-21T15:28:37.0603742+08:00 ===
+closing running DSH Desktop processes
+running installer: C:\Users\Administrator\Desktop\DSH\DSH-Desktop\release\DSH-Desktop-Setup-1.0.0-x64.exe /S
+installer exit code: 0
+ERROR: new exe not found at C:\Users\Administrator\AppData\Local\Programs\DSH Desktop\DSH Desktop.exe

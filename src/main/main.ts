@@ -64,7 +64,10 @@ if (!hasLock) {
       lastGoodDir: join(app.getPath('userData'), 'last-good-profile'),
     })
     updater = new AppUpdater(logger)
-    desktopWindow = new DesktopWindow(supervisor)
+    desktopWindow = new DesktopWindow(
+      supervisor,
+      (scope, message) => void logger.write(scope, message),
+    )
 
     const fsBridge = new FsBridge({
       fallbackRoot: app.getPath('documents'),

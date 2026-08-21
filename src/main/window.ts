@@ -7,10 +7,17 @@ import { isAllowedHarnessUrl } from './readiness.js'
 
 export class DesktopWindow {
   readonly #supervisor: HarnessSupervisor
+  readonly #log: (scope: string, message: string) => void
   #window: BrowserWindow | undefined
+  #probeTimer: NodeJS.Timeout | undefined
+  #lastProbe = ''
 
-  public constructor(supervisor: HarnessSupervisor) {
+  public constructor(
+    supervisor: HarnessSupervisor,
+    log: (scope: string, message: string) => void = () => undefined,
+  ) {
     this.#supervisor = supervisor
+    this.#log = log
   }
 
   public get browserWindow(): BrowserWindow | undefined {
@@ -43,6 +50,8 @@ export class DesktopWindow {
     this.#window = window
     window.once('ready-to-show', () => window.show())
     window.on('closed', () => {
+      if (this.#probeTimer !== undefined) clearInterval(this.#probeTimer)
+      this.#probeTimer = undefined
       this.#window = undefined
     })
     // Keep the window/taskbar name as "DSH Desktop": the DSH page replaces
@@ -52,6 +61,27 @@ export class DesktopWindow {
       event.preventDefault()
       if (window.getTitle() !== 'DSH Desktop') window.setTitle('DSH Desktop')
     })
+
+    // Diagnostics: forward page console warnings/errors and product-plugin
+    // messages into the desktop log, and periodically probe which product
+    // client plugins actually injected their styles into the page. This is
+    // how we diagnose "plugin bundle served but UI missing" in the field.
+    window.webContents.on('console-message', (event, legacyLevel, legacyMessage) => {
+      const level = typeof event === 'object' && event !== null && 'level' in event
+        ? (event as { level: unknown }).level
+        : legacyLevel
+      const message = typeof event === 'object' && event !== null && 'message' in event
+        ? (event as { message: string }).message
+        : legacyMessage
+      const isError = typeof level === 'number' ? level >= 2 : level === 'warning' || level === 'error'
+      if (isError || message.includes('dsh-desktop')) {
+        this.#log('page', `[${String(level)}] ${message}`)
+      }
+    })
+    window.webContents.on('did-finish-load', () => {
+      setTimeout(() => void this.#runProbe(window), 5000)
+    })
+    this.#probeTimer = setInterval(() => void this.#runProbe(window), 30_000)
 
     window.webContents.setWindowOpenHandler(({ url }) => {
       if (url.startsWith('https://')) void shell.openExternal(url)
@@ -102,6 +132,26 @@ export class DesktopWindow {
   public send(channel: string, ...args: unknown[]): void {
     if (this.#window !== undefined && !this.#window.isDestroyed()) {
       this.#window.webContents.send(channel, ...args)
+    }
+  }
+
+  async #runProbe(window: BrowserWindow): Promise<void> {
+    if (window.isDestroyed()) return
+    try {
+      const value = await window.webContents.executeJavaScript(
+        `JSON.stringify({
+          url: location.href,
+          dshDesktop: typeof window.dshDesktop,
+          styles: [...document.querySelectorAll('style[data-plugin]')].map(s => s.dataset.plugin).filter(Boolean)
+        })`,
+        true,
+      )
+      if (typeof value === 'string' && value !== this.#lastProbe) {
+        this.#lastProbe = value
+        this.#log('page-probe', value)
+      }
+    } catch {
+      // page not ready yet or navigated
     }
   }
 
